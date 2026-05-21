@@ -139,9 +139,22 @@ export default function App() {
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
     analyser.smoothingTimeConstant = 0.8
-    const src = ctx.createMediaElementSource(audio)
-    src.connect(analyser)
-    analyser.connect(ctx.destination)
+    let src = null
+    try {
+      const stream = typeof audio.captureStream === 'function' ? audio.captureStream() : null
+      if (stream && typeof ctx.createMediaStreamSource === 'function') {
+        src = ctx.createMediaStreamSource(stream)
+        src.connect(analyser)
+      } else {
+        src = ctx.createMediaElementSource(audio)
+        src.connect(analyser)
+        analyser.connect(ctx.destination)
+      }
+    } catch {
+      src = ctx.createMediaElementSource(audio)
+      src.connect(analyser)
+      analyser.connect(ctx.destination)
+    }
     ctxRef.current = ctx
     analyserRef.current = analyser
 
@@ -174,6 +187,8 @@ export default function App() {
       audio.removeEventListener('pause', onPause)
       audio.removeEventListener('ended', onEnded)
       audio.pause()
+      if (src) src.disconnect()
+      analyser.disconnect()
       ctx.close()
     }
   }, [handleEnded])

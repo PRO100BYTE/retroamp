@@ -276,8 +276,11 @@ body {
 .app--compact .playlist {
   width: 0;
   min-width: 0;
-  border-right: none;
+  min-height: 0;
+  max-height: 0;
+  border: 0;
   opacity: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -301,15 +304,19 @@ body {
 
 .app--compact .main-area {
   flex-direction: column;
+  min-height: 0;
 }
 
 .app--compact .right-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
 
 .app--compact .spectrum-wrap {
   flex: 1;
-  min-height: 110px;
+  min-height: 120px;
 }
 
 .app--compact .controls__row {
@@ -336,6 +343,96 @@ body {
 
 .app--compact .ctrl--play {
   min-width: 36px;
+}
+
+.app--compact .track-meta {
+  min-height: 42px;
+}
+
+.app--compact .track-info__sub {
+  display: none;
+}
+
+@media (max-height: 430px) {
+  .app--compact .titlebar {
+    height: 24px;
+    min-height: 24px;
+    padding: 0 6px;
+    gap: 6px;
+  }
+
+  .app--compact .titlebar__track {
+    display: none;
+  }
+
+  .app--compact .track-meta {
+    min-height: 0;
+  }
+
+  .app--compact .track-info {
+    min-height: 28px;
+    padding: 2px 8px;
+  }
+
+  .app--compact .track-info__label {
+    display: none;
+  }
+
+  .app--compact .track-info__title {
+    font-size: 11px;
+  }
+
+  .app--compact .spectrum-wrap {
+    min-height: 90px;
+  }
+
+  .app--compact .controls {
+    padding: 3px 8px;
+    gap: 2px;
+  }
+
+  .app--compact .controls__status {
+    display: none;
+  }
+
+  .app--compact .controls__seekrow {
+    gap: 5px;
+  }
+
+  .app--compact .controls__time {
+    min-width: 30px;
+    font-size: 9px;
+  }
+
+  .app--compact .controls__volbar {
+    width: 56px;
+  }
+}
+
+@media (max-width: 430px) {
+  .app--compact .titlebar__track {
+    display: none;
+  }
+
+  .app--compact .titlebar__menu {
+    gap: 2px;
+  }
+
+  .app--compact .titlebar__menu > button,
+  .app--compact .titlebar__filemenu > button {
+    padding: 1px 4px;
+    font-size: 8px;
+  }
+
+  .app--compact .controls__transport,
+  .app--compact .controls__modes {
+    gap: 3px;
+  }
+
+  .app--compact .controls__volpct {
+    min-width: 24px;
+    font-size: 9px;
+  }
 }
 
 /* ── Playlist ───────────────────────────────────────────────────── */
