@@ -182,22 +182,17 @@ body {
   flex-direction: column;
   z-index: 260;
   padding: 4px;
+  color: var(--text);
 }
 
 .titlebar__filemenu-popup button {
   background: transparent;
   border: none;
-  color: var(--text);
   text-align: left;
   font-family: var(--font);
   font-size: 11px;
   padding: 6px 8px;
   cursor: pointer;
-}
-
-.titlebar__filemenu-popup button:hover {
-  background: var(--green-dark);
-  color: var(--green);
 }
 
 .titlebar__filemenu-sep {
@@ -428,12 +423,12 @@ body {
   display: flex;
   flex-direction: column;
   padding: 4px;
+  color: var(--text);
 }
 
 .playlist__ctx button {
   font-family: var(--font);
   font-size: 11px;
-  color: var(--text);
   background: transparent;
   border: none;
   text-align: left;
@@ -441,9 +436,37 @@ body {
   cursor: pointer;
 }
 
-.playlist__ctx button:hover {
+.menu-item {
+  color: var(--text);
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 8px;
+  cursor: pointer;
+  position: relative;
+}
+
+.menu-item:hover {
   background: var(--green-dark);
   color: var(--green);
+}
+
+.menu-item--active {
+  background: color-mix(in srgb, var(--green-dark) 72%, transparent);
+  color: var(--green);
+  text-shadow: 0 0 8px color-mix(in srgb, var(--green) 40%, transparent);
+}
+
+.menu-item--active::before {
+  content: '•';
+  position: absolute;
+  left: 4px;
+}
+
+.menu-item--active {
+  padding-left: 16px;
 }
 
 .viz__ctx {

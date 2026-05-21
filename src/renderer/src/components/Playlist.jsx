@@ -140,10 +140,10 @@ export default function Playlist({
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <button onClick={() => runMenuAction('play')}>{t('ctxPlay')}</button>
-          <button onClick={() => runMenuAction('remove')}>{t('ctxRemove')}</button>
-          <button onClick={() => runMenuAction('up')}>{t('ctxMoveUp')}</button>
-          <button onClick={() => runMenuAction('down')}>{t('ctxMoveDown')}</button>
+          <button className="menu-item" onClick={() => runMenuAction('play')}>{t('ctxPlay')}</button>
+          <button className="menu-item" onClick={() => runMenuAction('remove')}>{t('ctxRemove')}</button>
+          <button className="menu-item" onClick={() => runMenuAction('up')}>{t('ctxMoveUp')}</button>
+          <button className="menu-item" onClick={() => runMenuAction('down')}>{t('ctxMoveDown')}</button>
         </div>
       )}
     </div>

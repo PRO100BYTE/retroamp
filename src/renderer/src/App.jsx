@@ -491,9 +491,24 @@ export default function App() {
           onContextMenu={(e) => e.preventDefault()}
         >
           <div className="viz__ctx-title">{t('vizMenuTitle')}</div>
-          <button onClick={() => setVizMode('bars')}>{t('vizBars')}</button>
-          <button onClick={() => setVizMode('dots')}>{t('vizDots')}</button>
-          <button onClick={() => setVizMode('mirror')}>{t('vizMirror')}</button>
+          <button
+            className={settings.vizMode === 'bars' ? 'menu-item menu-item--active' : 'menu-item'}
+            onClick={() => setVizMode('bars')}
+          >
+            {t('vizBars')}
+          </button>
+          <button
+            className={settings.vizMode === 'dots' ? 'menu-item menu-item--active' : 'menu-item'}
+            onClick={() => setVizMode('dots')}
+          >
+            {t('vizDots')}
+          </button>
+          <button
+            className={settings.vizMode === 'mirror' ? 'menu-item menu-item--active' : 'menu-item'}
+            onClick={() => setVizMode('mirror')}
+          >
+            {t('vizMirror')}
+          </button>
         </div>
       )}
 

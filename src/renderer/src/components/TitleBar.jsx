@@ -40,12 +40,12 @@ export default function TitleBar({
           <button onClick={() => setFileMenuOpen((v) => !v)}>{t('menuFile')}</button>
           {fileMenuOpen && (
             <div className="titlebar__filemenu-popup">
-              <button onClick={() => { setFileMenuOpen(false); onOpenFiles() }}>{t('fileOpenFiles')}</button>
-              <button onClick={() => { setFileMenuOpen(false); onOpenFolder() }}>{t('fileOpenFolder')}</button>
-              <button onClick={() => { setFileMenuOpen(false); onImportM3U() }}>{t('fileImportM3U')}</button>
-              <button onClick={() => { setFileMenuOpen(false); onExportM3U() }}>{t('fileExportM3U')}</button>
+              <button className="menu-item" onClick={() => { setFileMenuOpen(false); onOpenFiles() }}>{t('fileOpenFiles')}</button>
+              <button className="menu-item" onClick={() => { setFileMenuOpen(false); onOpenFolder() }}>{t('fileOpenFolder')}</button>
+              <button className="menu-item" onClick={() => { setFileMenuOpen(false); onImportM3U() }}>{t('fileImportM3U')}</button>
+              <button className="menu-item" onClick={() => { setFileMenuOpen(false); onExportM3U() }}>{t('fileExportM3U')}</button>
               <div className="titlebar__filemenu-sep" />
-              <button onClick={() => { setFileMenuOpen(false); onClear() }}>{t('fileClear')}</button>
+              <button className="menu-item" onClick={() => { setFileMenuOpen(false); onClear() }}>{t('fileClear')}</button>
             </div>
           )}
         </div>
