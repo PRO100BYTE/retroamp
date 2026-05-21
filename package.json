@@ -6,42 +6,20 @@
   "author": "PRO100BYTE",
   "license": "MIT",
   "scripts": {
-    "dev": "electron-vite dev",
-    "build": "electron-vite build",
-    "preview": "electron-vite preview",
-    "dist:win": "npm run build && electron-builder --win"
+    "dev": "vite --config vite.renderer.config.mjs",
+    "build": "vite build --config vite.renderer.config.mjs",
+    "preview": "vite preview --config vite.renderer.config.mjs",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
-    "electron": "^29.4.0",
-    "music-metadata": "^10.6.2"
+    "@tauri-apps/api": "^2.11.0",
+    "music-metadata": "^10.9.1"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.2.1",
-    "electron-builder": "^24.13.3",
-    "electron-vite": "^2.1.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "vite": "^5.2.0"
-  },
-  "build": {
-    "appId": "com.pro100byte.retroamp",
-    "productName": "RetroAmp",
-    "copyright": "Copyright © 2026 PRO100BYTE Team",
-    "win": {
-      "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "resources/icon.png"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    },
-    "directories": {
-      "output": "dist",
-      "buildResources": "resources"
-    },
-    "files": [
-      "out/**/*",
-      "resources/**/*"
-    ]
+    "@tauri-apps/cli": "^2.11.2",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "vite": "^5.2.0",
+    "vue": "^3.5.34"
   }
 }
