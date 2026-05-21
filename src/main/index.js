@@ -271,7 +271,7 @@ ipcMain.handle('media:readAudioSource', async (_e, filePath) => {
     return {
       path: filePath,
       mime: guessAudioMime(filePath),
-      data: Uint8Array.from(data),
+      base64: Buffer.from(data).toString('base64'),
     }
   } catch {
     return null

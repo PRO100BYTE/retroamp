@@ -50,6 +50,15 @@ export default function SettingsModal({ settings, onChange, onClose, t }) {
           <span>{t('settingsAutoPlay')}</span>
         </label>
 
+        <label className="settings__row settings__row--check">
+          <input
+            type="checkbox"
+            checked={!!settings.compactMode}
+            onChange={(e) => set('compactMode', e.target.checked)}
+          />
+          <span>{t('settingsCompact')}</span>
+        </label>
+
         <label className="settings__row">
           <span>{t('settingsViz')}</span>
           <input

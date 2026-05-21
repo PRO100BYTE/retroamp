@@ -9,6 +9,7 @@ const dict = {
     menuFile: '[ФАЙЛ]',
     menuSettings: '[НАСТРОЙКИ]',
     menuAbout: '[О ПРОГРАММЕ]',
+    menuCompact: '[КОМПАКТ]',
     menuClear: '[ОЧИСТИТЬ]',
     fileOpenFiles: 'Открыть файлы...',
     fileOpenFolder: 'Открыть папку...',
@@ -41,6 +42,7 @@ const dict = {
     settingsLanguage: 'Язык',
     settingsShowCover: 'Показывать обложку альбома',
     settingsAutoPlay: 'Автозапуск при добавлении первого трека',
+    settingsCompact: 'Компактный режим интерфейса',
     settingsViz: 'Интенсивность визуализатора',
     settingsOk: 'ОК',
 
@@ -78,6 +80,7 @@ const dict = {
     menuFile: '[FILE]',
     menuSettings: '[SETTINGS]',
     menuAbout: '[ABOUT]',
+    menuCompact: '[COMPACT]',
     menuClear: '[CLEAR]',
     fileOpenFiles: 'Open files...',
     fileOpenFolder: 'Open folder...',
@@ -110,6 +113,7 @@ const dict = {
     settingsLanguage: 'Language',
     settingsShowCover: 'Show album cover',
     settingsAutoPlay: 'Auto play when first track is added',
+    settingsCompact: 'Compact UI mode',
     settingsViz: 'Visualizer intensity',
     settingsOk: 'OK',
 

@@ -8,6 +8,8 @@ export default function TitleBar({
   onImportM3U,
   onExportM3U,
   onClear,
+  onToggleCompact,
+  compactMode,
   onOpenSettings,
   onOpenAbout,
   t,
@@ -49,6 +51,12 @@ export default function TitleBar({
             </div>
           )}
         </div>
+        <button
+          className={compactMode ? 'menu-item--active-btn' : ''}
+          onClick={onToggleCompact}
+        >
+          {t('menuCompact')}
+        </button>
         <button onClick={onOpenSettings}>{t('menuSettings')}</button>
         <button onClick={onOpenAbout}>{t('menuAbout')}</button>
       </div>

@@ -218,6 +218,12 @@ body {
   white-space: nowrap;
 }
 
+.menu-item--active-btn {
+  background: color-mix(in srgb, var(--green-dark) 70%, transparent) !important;
+  color: var(--green) !important;
+  border-color: var(--green-border) !important;
+}
+
 .titlebar__menu > button:hover,
 .titlebar__filemenu > button:hover {
   background: rgba(0,0,0,0.45);
@@ -265,6 +271,32 @@ body {
   flex: 1;
   min-height: 0;
   border-bottom: 1px solid var(--border);
+}
+
+.app--compact .playlist {
+  width: 0;
+  min-width: 0;
+  border-right: none;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.app--compact .track-meta__cover-wrap {
+  display: none;
+}
+
+.app--compact .controls {
+  padding: 4px 10px;
+  gap: 3px;
+}
+
+.app--compact .controls__shortcuts {
+  display: none;
+}
+
+.app--compact .track-info {
+  min-height: 34px;
+  padding: 4px 12px;
 }
 
 /* ── Playlist ───────────────────────────────────────────────────── */

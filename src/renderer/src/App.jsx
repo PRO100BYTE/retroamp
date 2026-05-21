@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   language: LANG.RU,
   showCover: true,
   autoPlayOnAdd: true,
+  compactMode: false,
   vizIntensity: 1,
   vizMode: 'bars',
 }
@@ -100,7 +101,6 @@ export default function App() {
   const audioRef = useRef(null)
   const ctxRef = useRef(null)
   const analyserRef = useRef(null)
-  const objectUrlRef = useRef(null)
 
   const handleEnded = useCallback(() => {
     const tl = tracksRef.current
@@ -164,10 +164,6 @@ export default function App() {
     })
 
     return () => {
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current)
-        objectUrlRef.current = null
-      }
       audio.removeEventListener('timeupdate', onTime)
       audio.removeEventListener('loadedmetadata', onMeta)
       audio.removeEventListener('play', onPlay)
@@ -194,19 +190,9 @@ export default function App() {
     if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
 
     const source = await window.electronAPI.readAudioSource(track.path)
-    if (!source?.data) return
+    if (!source?.base64) return
 
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current)
-      objectUrlRef.current = null
-    }
-
-    const bytes = source.data instanceof Uint8Array ? source.data : new Uint8Array(source.data)
-    const blob = new Blob([bytes], { type: source.mime || 'application/octet-stream' })
-    const url = URL.createObjectURL(blob)
-    objectUrlRef.current = url
-
-    audio.src = url
+    audio.src = `data:${source.mime || 'application/octet-stream'};base64,${source.base64}`
     audio.load()
     audio.play().catch(console.error)
     setCurrentIdx(idx)
@@ -287,10 +273,6 @@ export default function App() {
 
   const clearPlaylist = useCallback(() => {
     audioRef.current?.pause()
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current)
-      objectUrlRef.current = null
-    }
     setTracks([])
     setCurrentIdx(-1)
     setPlaying(false)
@@ -304,10 +286,6 @@ export default function App() {
       setCurrentIdx((ci) => {
         if (ci === idx) {
           audioRef.current?.pause()
-          if (objectUrlRef.current) {
-            URL.revokeObjectURL(objectUrlRef.current)
-            objectUrlRef.current = null
-          }
           if (arr.length === 0) return -1
           const ni = Math.min(idx, arr.length - 1)
           setTimeout(() => playAt(ni, arr), 0)
@@ -415,7 +393,7 @@ export default function App() {
 
   return (
     <div
-      className={`app theme-${settings.theme}${dragOver ? ' app--dragover' : ''}`}
+      className={`app theme-${settings.theme}${settings.compactMode ? ' app--compact' : ''}${dragOver ? ' app--dragover' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -428,6 +406,8 @@ export default function App() {
         onImportM3U={handleImportM3U}
         onExportM3U={handleExportM3U}
         onOpenSettings={() => setShowSettings(true)}
+        onToggleCompact={() => setSettings((prev) => ({ ...prev, compactMode: !prev.compactMode }))}
+        compactMode={!!settings.compactMode}
         onOpenAbout={() => setShowAbout(true)}
         onClear={clearPlaylist}
       />
