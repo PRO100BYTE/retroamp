@@ -15,12 +15,19 @@
         "title": "RetroAmp",
         "width": 800,
         "height": 600,
+        "minWidth": 330,
+        "minHeight": 330,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "decorations": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
     }
   },
   "bundle": {

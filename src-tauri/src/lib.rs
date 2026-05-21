@@ -35,6 +35,20 @@ fn normalize_mime(mime: Option<&str>) -> &'static str {
   "image/jpeg"
 }
 
+fn audio_mime_from_path(path: &Path) -> &'static str {
+  match path.extension().and_then(|s| s.to_str()).map(|s| s.to_ascii_lowercase()) {
+    Some(ext) if ext == "mp3" => "audio/mpeg",
+    Some(ext) if ext == "wav" => "audio/wav",
+    Some(ext) if ext == "ogg" => "audio/ogg",
+    Some(ext) if ext == "flac" => "audio/flac",
+    Some(ext) if ext == "aac" => "audio/aac",
+    Some(ext) if ext == "m4a" || ext == "mp4" => "audio/mp4",
+    Some(ext) if ext == "opus" => "audio/opus",
+    Some(ext) if ext == "wma" => "audio/x-ms-wma",
+    _ => "application/octet-stream",
+  }
+}
+
 #[tauri::command]
 fn dialog_open_files() -> Vec<String> {
   FileDialog::new()
@@ -108,6 +122,19 @@ fn media_read_cover(path: String) -> Option<String> {
 #[tauri::command]
 fn media_to_file_url(path: String) -> Option<String> {
   Url::from_file_path(path).ok().map(|u| u.to_string())
+}
+
+#[tauri::command]
+fn media_read_audio_data_url(path: String) -> Option<String> {
+  let p = PathBuf::from(&path);
+  if !p.exists() || !is_audio_path(&p) {
+    return None;
+  }
+
+  let bytes = fs::read(&p).ok()?;
+  let mime = audio_mime_from_path(&p);
+  let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
+  Some(format!("data:{};base64,{}", mime, b64))
 }
 
 fn resolve_m3u_line(base_dir: &Path, line: &str) -> Option<PathBuf> {
@@ -187,6 +214,7 @@ pub fn run() {
       media_read_tags,
       media_read_cover,
       media_to_file_url,
+      media_read_audio_data_url,
       playlist_import_m3u,
       playlist_export_m3u
     ])

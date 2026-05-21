@@ -17,6 +17,40 @@ export default function TitleBar({
   const [maximized, setMaximized] = useState(false)
   const [fileMenuOpen, setFileMenuOpen] = useState(false)
 
+  const handleMinimize = async () => {
+    try {
+      await window.electronAPI.minimize()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleMaximize = async () => {
+    try {
+      await window.electronAPI.maximize()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleClose = async () => {
+    try {
+      await window.electronAPI.close()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
+  const handleDragStart = async (event) => {
+    if (event.button !== 0) return
+    if (event.target.closest('button, input, select, textarea, a')) return
+    try {
+      await window.electronAPI.startDragging()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   useEffect(() => {
     const unsub = window.electronAPI.onMaximized((val) => setMaximized(val))
     return unsub
@@ -31,7 +65,7 @@ export default function TitleBar({
   const trackName = track ? track.title : null
 
   return (
-    <div className="titlebar">
+    <div className="titlebar" onMouseDown={handleDragStart}>
       <span className="titlebar__logo">
         <img src={appIcon} alt="RetroAmp" className="titlebar__logo-icon" />
         <span className="titlebar__logo-text">RETROAMP</span>
@@ -67,18 +101,24 @@ export default function TitleBar({
 
       <div className="titlebar__wctrl">
         <button
+          type="button"
           className="wctrl wctrl--min"
-          onClick={() => window.electronAPI.minimize()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={handleMinimize}
           title="Minimise"
         >─</button>
         <button
+          type="button"
           className="wctrl wctrl--max"
-          onClick={() => window.electronAPI.maximize()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={handleMaximize}
           title={maximized ? 'Restore' : 'Maximise'}
         >{maximized ? '❐' : '□'}</button>
         <button
+          type="button"
           className="wctrl wctrl--close"
-          onClick={() => window.electronAPI.close()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={handleClose}
           title="Close"
         >✕</button>
       </div>

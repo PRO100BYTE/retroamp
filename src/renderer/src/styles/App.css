@@ -164,6 +164,8 @@ body {
   gap: 4px;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
+  position: relative;
+  z-index: 210;
 }
 
 .titlebar__filemenu {
@@ -216,6 +218,7 @@ body {
   cursor: pointer;
   letter-spacing: 0.5px;
   white-space: nowrap;
+  -webkit-app-region: no-drag;
 }
 
 .menu-item--active-btn {
@@ -246,6 +249,8 @@ body {
   gap: 3px;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
+  position: relative;
+  z-index: 210;
 }
 
 .wctrl {
@@ -261,6 +266,9 @@ body {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  -webkit-app-region: no-drag;
+  position: relative;
+  z-index: 220;
 }
 .wctrl:hover          { background: #00cc44; }
 .wctrl--close:hover   { background: var(--red); color: #fff; }

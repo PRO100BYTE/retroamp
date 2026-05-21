@@ -6,6 +6,8 @@ import Controls from './components/Controls'
 import SettingsModal from './components/SettingsModal'
 import AboutModal from './components/AboutModal'
 import { LANG, makeT } from './i18n'
+import { convertFileSrc } from '@tauri-apps/api/core'
+import { Howl, Howler } from 'howler'
 
 let _id = 0
 
@@ -105,18 +107,49 @@ export default function App() {
     return () => window.removeEventListener('click', close)
   }, [])
 
-  const audioRef = useRef(null)
-  const ctxRef = useRef(null)
+  const howlRef = useRef(null)
+  const tickRef = useRef(null)
   const analyserRef = useRef(null)
+
+  const stopTicker = useCallback(() => {
+    if (tickRef.current) {
+      clearInterval(tickRef.current)
+      tickRef.current = null
+    }
+  }, [])
+
+  const startTicker = useCallback(() => {
+    stopTicker()
+    tickRef.current = setInterval(() => {
+      const howl = howlRef.current
+      if (!howl) return
+      const pos = Number(howl.seek()) || 0
+      setCurrentTime(pos)
+      const d = howl.duration() || 0
+      if (d > 0) setDuration(d)
+    }, 120)
+  }, [stopTicker])
+
+  const unloadCurrentHowl = useCallback(() => {
+    const current = howlRef.current
+    if (!current) return
+    try {
+      current.stop()
+      current.unload()
+    } catch {
+      // no-op
+    }
+    howlRef.current = null
+  }, [])
 
   const handleEnded = useCallback(() => {
     const tl = tracksRef.current
     const ci = currentIdxRef.current
     const rep = repeatRef.current
     const sh = shuffleRef.current
-    if (rep === REPEAT.ONE && audioRef.current) {
-      audioRef.current.currentTime = 0
-      audioRef.current.play().catch(() => {})
+    if (rep === REPEAT.ONE && howlRef.current) {
+      howlRef.current.seek(0)
+      howlRef.current.play()
       return
     }
     let next
@@ -133,64 +166,45 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const audio = new Audio()
-    audioRef.current = audio
-    audio.preload = 'auto'
-    audio.crossOrigin = 'anonymous'
-    audio.volume = volume
+    Howler.autoUnlock = true
 
-    const Ctor = window.AudioContext || window.webkitAudioContext
-    const ctx = new Ctor()
-    const analyser = ctx.createAnalyser()
-    analyser.fftSize = 1024
-    analyser.smoothingTimeConstant = 0.56
-    analyser.minDecibels = -90
-    analyser.maxDecibels = -10
-    const src = ctx.createMediaElementSource(audio)
-    src.connect(analyser)
-    analyser.connect(ctx.destination)
-    ctxRef.current = ctx
-    analyserRef.current = analyser
-
-    const onTime = () => setCurrentTime(audio.currentTime)
-    const onMeta = () => setDuration(audio.duration)
-    const onPlay = () => setPlaying(true)
-    const onPause = () => setPlaying(false)
-    const onEnded = () => handleEnded()
-
-    audio.addEventListener('timeupdate', onTime)
-    audio.addEventListener('loadedmetadata', onMeta)
-    audio.addEventListener('play', onPlay)
-    audio.addEventListener('pause', onPause)
-    audio.addEventListener('ended', onEnded)
-
-    audio.addEventListener('loadedmetadata', () => {
-      const idx = currentIdxRef.current
-      if (idx < 0) return
-      setTracks((prev) => {
-        const copy = [...prev]
-        if (copy[idx]) copy[idx] = { ...copy[idx], duration: audio.duration }
-        return copy
-      })
-    })
+    let analyser = null
+    try {
+      const ctx = Howler.ctx
+      const master = Howler.masterGain
+      if (ctx && master) {
+        analyser = ctx.createAnalyser()
+        analyser.fftSize = 1024
+        analyser.smoothingTimeConstant = 0.56
+        analyser.minDecibels = -90
+        analyser.maxDecibels = -10
+        master.connect(analyser)
+        analyserRef.current = analyser
+      }
+    } catch {
+      analyserRef.current = null
+    }
 
     return () => {
-      audio.removeEventListener('timeupdate', onTime)
-      audio.removeEventListener('loadedmetadata', onMeta)
-      audio.removeEventListener('play', onPlay)
-      audio.removeEventListener('pause', onPause)
-      audio.removeEventListener('ended', onEnded)
-      audio.pause()
-      if (src) src.disconnect()
-      analyser.disconnect()
-      ctx.close()
+      stopTicker()
+      unloadCurrentHowl()
+      if (analyser) {
+        try {
+          analyser.disconnect()
+        } catch {
+          // no-op
+        }
+      }
+      analyserRef.current = null
     }
-  }, [handleEnded])
+  }, [stopTicker, unloadCurrentHowl])
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume
-      audioRef.current.muted = muted
+    Howler.volume(muted ? 0 : volume)
+    const howl = howlRef.current
+    if (howl) {
+      howl.volume(volume)
+      howl.mute(muted)
     }
   }, [volume, muted])
 
@@ -215,33 +229,89 @@ export default function App() {
     const tl = list ?? tracksRef.current
     const track = tl[idx]
     if (!track) return
-    const audio = audioRef.current
-    if (!audio) return
-    if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
-
-    const fileUrl = await window.electronAPI.toFileUrl(track.path)
+    const fileUrl = convertFileSrc(track.path)
     if (!fileUrl) return
 
-    audio.src = fileUrl
-    audio.load()
-    audio.play().catch(console.error)
+    stopTicker()
+    unloadCurrentHowl()
+
+    const buildAndPlay = (sourceUrl, isFallback) => {
+      const howl = new Howl({
+        src: [sourceUrl],
+        html5: false,
+        volume,
+        mute: muted,
+        onplay: () => {
+          setPlaying(true)
+          startTicker()
+        },
+        onpause: () => {
+          setPlaying(false)
+          stopTicker()
+        },
+        onstop: () => {
+          setPlaying(false)
+          setCurrentTime(0)
+          stopTicker()
+        },
+        onend: () => {
+          stopTicker()
+          handleEnded()
+        },
+        onload: () => {
+          const d = howl.duration() || 0
+          setDuration(d)
+          setTracks((prev) => {
+            const copy = [...prev]
+            if (copy[idx]) copy[idx] = { ...copy[idx], duration: d }
+            return copy
+          })
+        },
+        onplayerror: (_id, err) => {
+          console.error(err)
+        },
+        onloaderror: async (_id, err) => {
+          console.error(err)
+          if (isFallback) return
+          try {
+            const dataUrl = await window.electronAPI.readAudioDataUrl(track.path)
+            if (!dataUrl) return
+            unloadCurrentHowl()
+            buildAndPlay(dataUrl, true)
+          } catch (fallbackError) {
+            console.error(fallbackError)
+          }
+        },
+      })
+
+      howlRef.current = howl
+      const ctx = Howler.ctx
+      if (ctx && ctx.state === 'suspended') {
+        void ctx.resume()
+      }
+      howl.play()
+    }
+
     setCurrentIdx(idx)
     setCurrentTime(0)
     setDuration(0)
-  }, [])
+
+    buildAndPlay(fileUrl, false)
+  }, [handleEnded, muted, startTicker, stopTicker, unloadCurrentHowl, volume])
 
   const togglePlay = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
-    if (playing) {
-      audio.pause()
-    } else {
+    const howl = howlRef.current
+    if (!howl) {
       if (tracks.length === 0) return
-      if (!audio.src) { playAt(0); return }
-      audio.play().catch(console.error)
+      playAt(currentIdx >= 0 ? currentIdx : 0)
+      return
     }
-  }, [playing, tracks.length, playAt])
+    if (playing) {
+      howl.pause()
+    } else {
+      howl.play()
+    }
+  }, [currentIdx, playAt, playing, tracks.length])
 
   const playNext = useCallback(() => {
     const tl = tracksRef.current
@@ -253,11 +323,11 @@ export default function App() {
   }, [playAt])
 
   const playPrev = useCallback(() => {
-    const audio = audioRef.current
+    const howl = howlRef.current
     const tl = tracksRef.current
     if (tl.length === 0) return
-    if (audio && audio.currentTime > 3) {
-      audio.currentTime = 0
+    if (howl && Number(howl.seek()) > 3) {
+      howl.seek(0)
       return
     }
     const prev = shuffleRef.current
@@ -267,18 +337,19 @@ export default function App() {
   }, [playAt])
 
   const stop = useCallback(() => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.pause()
-    audio.currentTime = 0
+    const howl = howlRef.current
+    if (!howl) return
+    howl.stop()
+    setCurrentTime(0)
   }, [])
 
   const seek = useCallback((ratio) => {
-    const audio = audioRef.current
-    if (audio && isFinite(audio.duration)) {
-      audio.currentTime = ratio * audio.duration
+    const howl = howlRef.current
+    if (howl && isFinite(duration) && duration > 0) {
+      howl.seek(ratio * duration)
+      setCurrentTime(ratio * duration)
     }
-  }, [])
+  }, [duration])
 
   const addPaths = useCallback(async (paths) => {
     const filtered = (paths || []).filter((p) => AUDIO_RE.test(p))
@@ -311,27 +382,29 @@ export default function App() {
     setTracks((prev) => {
       const merged = [...prev, ...newTracks]
       if (prev.length === 0 && newTracks.length > 0 && settings.autoPlayOnAdd) {
-        setTimeout(() => playAt(0, merged), 50)
+        void playAt(0, merged)
       }
       return merged
     })
   }, [playAt, settings.autoPlayOnAdd])
 
   const clearPlaylist = useCallback(() => {
-    audioRef.current?.pause()
+    stopTicker()
+    unloadCurrentHowl()
     setTracks([])
     setCurrentIdx(-1)
     setPlaying(false)
     setCurrentTime(0)
     setDuration(0)
-  }, [])
+  }, [stopTicker, unloadCurrentHowl])
 
   const removeTrack = useCallback((idx) => {
     setTracks((prev) => {
       const arr = prev.filter((_, i) => i !== idx)
       setCurrentIdx((ci) => {
         if (ci === idx) {
-          audioRef.current?.pause()
+          stopTicker()
+          unloadCurrentHowl()
           if (arr.length === 0) return -1
           const ni = Math.min(idx, arr.length - 1)
           setTimeout(() => playAt(ni, arr), 0)
@@ -341,7 +414,7 @@ export default function App() {
       })
       return arr
     })
-  }, [playAt])
+  }, [playAt, stopTicker, unloadCurrentHowl])
 
   const reorderTracks = useCallback((fromIdx, toIdx) => {
     if (fromIdx === toIdx) return
@@ -409,11 +482,19 @@ export default function App() {
           e.preventDefault(); togglePlay(); break
         case 'ArrowRight':
           if (e.ctrlKey) { e.preventDefault(); playNext() }
-          else if (audioRef.current) audioRef.current.currentTime = Math.min(duration, currentTime + 5)
+          else if (howlRef.current) {
+            const next = Math.min(duration, currentTime + 5)
+            howlRef.current.seek(next)
+            setCurrentTime(next)
+          }
           break
         case 'ArrowLeft':
           if (e.ctrlKey) { e.preventDefault(); playPrev() }
-          else if (audioRef.current) audioRef.current.currentTime = Math.max(0, currentTime - 5)
+          else if (howlRef.current) {
+            const prev = Math.max(0, currentTime - 5)
+            howlRef.current.seek(prev)
+            setCurrentTime(prev)
+          }
           break
         case 'ArrowUp':
           e.preventDefault(); setVolume((v) => Math.min(1, parseFloat((v + 0.05).toFixed(2)))); break
