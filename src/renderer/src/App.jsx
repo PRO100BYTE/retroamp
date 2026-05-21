@@ -100,6 +100,7 @@ export default function App() {
   const audioRef = useRef(null)
   const ctxRef = useRef(null)
   const analyserRef = useRef(null)
+  const objectUrlRef = useRef(null)
 
   const handleEnded = useCallback(() => {
     const tl = tracksRef.current
@@ -163,6 +164,10 @@ export default function App() {
     })
 
     return () => {
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
       audio.removeEventListener('timeupdate', onTime)
       audio.removeEventListener('loadedmetadata', onMeta)
       audio.removeEventListener('play', onPlay)
@@ -180,14 +185,27 @@ export default function App() {
     }
   }, [volume, muted])
 
-  const playAt = useCallback((idx, list) => {
+  const playAt = useCallback(async (idx, list) => {
     const tl = list ?? tracksRef.current
     const track = tl[idx]
     if (!track) return
     const audio = audioRef.current
     if (!audio) return
     if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
-    const url = `file:///${track.path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')}`
+
+    const source = await window.electronAPI.readAudioSource(track.path)
+    if (!source?.data) return
+
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+
+    const bytes = source.data instanceof Uint8Array ? source.data : new Uint8Array(source.data)
+    const blob = new Blob([bytes], { type: source.mime || 'application/octet-stream' })
+    const url = URL.createObjectURL(blob)
+    objectUrlRef.current = url
+
     audio.src = url
     audio.load()
     audio.play().catch(console.error)
@@ -269,6 +287,10 @@ export default function App() {
 
   const clearPlaylist = useCallback(() => {
     audioRef.current?.pause()
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
     setTracks([])
     setCurrentIdx(-1)
     setPlaying(false)
@@ -282,6 +304,10 @@ export default function App() {
       setCurrentIdx((ci) => {
         if (ci === idx) {
           audioRef.current?.pause()
+          if (objectUrlRef.current) {
+            URL.revokeObjectURL(objectUrlRef.current)
+            objectUrlRef.current = null
+          }
           if (arr.length === 0) return -1
           const ni = Math.min(idx, arr.length - 1)
           setTimeout(() => playAt(ni, arr), 0)

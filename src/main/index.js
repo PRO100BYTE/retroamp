@@ -91,6 +91,22 @@ ipcMain.handle('dialog:openFolder', async () => {
 ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const list = Array.isArray(filePaths) ? filePaths : []
 
+  const guessAudioMime = (fileName) => {
+    const ext = extname(fileName).toLowerCase()
+    switch (ext) {
+      case '.mp3': return 'audio/mpeg'
+      case '.flac': return 'audio/flac'
+      case '.ogg': return 'audio/ogg'
+      case '.wav': return 'audio/wav'
+      case '.aac': return 'audio/aac'
+      case '.m4a': return 'audio/mp4'
+      case '.mp4': return 'audio/mp4'
+      case '.opus': return 'audio/ogg'
+      case '.wma': return 'audio/x-ms-wma'
+      default: return 'application/octet-stream'
+    }
+  }
+
   const extractBestArtist = (common, native) => {
     if (typeof common.artist === 'string' && common.artist.trim()) return common.artist.trim()
     if (Array.isArray(common.artists) && common.artists.length > 0) {
@@ -168,8 +184,13 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
 
   const pictureToDataUrl = (picture) => {
     if (!picture?.data || picture.data.length === 0) return null
+    const raw = Buffer.from(picture.data)
+    const decoded = nativeImage.createFromBuffer(raw)
+    if (!decoded.isEmpty()) {
+      return `data:image/png;base64,${decoded.toPNG().toString('base64')}`
+    }
     const mime = normalizePictureMime(picture.format) || 'image/jpeg'
-    return `data:${mime};base64,${Buffer.from(picture.data).toString('base64')}`
+    return `data:${mime};base64,${raw.toString('base64')}`
   }
 
   const guessCoverMime = (fileName) => {
@@ -183,8 +204,13 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const coverFromImageFile = async (targetPath) => {
     try {
       const data = await readFile(targetPath)
+      const raw = Buffer.from(data)
+      const decoded = nativeImage.createFromBuffer(raw)
+      if (!decoded.isEmpty()) {
+        return `data:image/png;base64,${decoded.toPNG().toString('base64')}`
+      }
       const mime = guessCoverMime(targetPath)
-      return `data:${mime};base64,${Buffer.from(data).toString('base64')}`
+      return `data:${mime};base64,${raw.toString('base64')}`
     } catch {
       return null
     }
@@ -236,6 +262,20 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
     }
   }))
   return out
+})
+
+ipcMain.handle('media:readAudioSource', async (_e, filePath) => {
+  if (!filePath || typeof filePath !== 'string') return null
+  try {
+    const data = await readFile(filePath)
+    return {
+      path: filePath,
+      mime: guessAudioMime(filePath),
+      data: Uint8Array.from(data),
+    }
+  } catch {
+    return null
+  }
 })
 
 ipcMain.handle('playlist:importM3U', async () => {
