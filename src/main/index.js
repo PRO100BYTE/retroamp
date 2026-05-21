@@ -188,10 +188,6 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const pictureToDataUrl = (picture) => {
     if (!picture?.data || picture.data.length === 0) return null
     const raw = Buffer.from(picture.data)
-    const decoded = nativeImage.createFromBuffer(raw)
-    if (!decoded.isEmpty()) {
-      return `data:image/png;base64,${decoded.toPNG().toString('base64')}`
-    }
     const mime = normalizePictureMime(picture.format) || 'image/jpeg'
     return `data:${mime};base64,${raw.toString('base64')}`
   }
@@ -208,10 +204,6 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
     try {
       const data = await readFile(targetPath)
       const raw = Buffer.from(data)
-      const decoded = nativeImage.createFromBuffer(raw)
-      if (!decoded.isEmpty()) {
-        return `data:image/png;base64,${decoded.toPNG().toString('base64')}`
-      }
       const mime = guessCoverMime(targetPath)
       return `data:${mime};base64,${raw.toString('base64')}`
     } catch {

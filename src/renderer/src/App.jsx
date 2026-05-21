@@ -132,6 +132,8 @@ export default function App() {
   useEffect(() => {
     const audio = new Audio()
     audioRef.current = audio
+    audio.preload = 'auto'
+    audio.crossOrigin = 'anonymous'
     audio.volume = volume
 
     const Ctor = window.AudioContext || window.webkitAudioContext
@@ -139,22 +141,9 @@ export default function App() {
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
     analyser.smoothingTimeConstant = 0.8
-    let src = null
-    try {
-      const stream = typeof audio.captureStream === 'function' ? audio.captureStream() : null
-      if (stream && typeof ctx.createMediaStreamSource === 'function') {
-        src = ctx.createMediaStreamSource(stream)
-        src.connect(analyser)
-      } else {
-        src = ctx.createMediaElementSource(audio)
-        src.connect(analyser)
-        analyser.connect(ctx.destination)
-      }
-    } catch {
-      src = ctx.createMediaElementSource(audio)
-      src.connect(analyser)
-      analyser.connect(ctx.destination)
-    }
+    const src = ctx.createMediaElementSource(audio)
+    src.connect(analyser)
+    analyser.connect(ctx.destination)
     ctxRef.current = ctx
     analyserRef.current = analyser
 
