@@ -13,10 +13,17 @@ export default function TitleBar({
   t,
 }) {
   const [maximized, setMaximized] = useState(false)
+  const [fileMenuOpen, setFileMenuOpen] = useState(false)
 
   useEffect(() => {
     const unsub = window.electronAPI.onMaximized((val) => setMaximized(val))
     return unsub
+  }, [])
+
+  useEffect(() => {
+    const close = () => setFileMenuOpen(false)
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
   }, [])
 
   const trackName = track ? track.title : null
@@ -29,13 +36,21 @@ export default function TitleBar({
       </span>
 
       <div className="titlebar__menu">
-        <button onClick={onOpenFiles}>{t('menuFile')}</button>
-        <button onClick={onOpenFolder}>{t('menuFolder')}</button>
-        <button onClick={onImportM3U}>{t('menuImportM3U')}</button>
-        <button onClick={onExportM3U}>{t('menuExportM3U')}</button>
+        <div className="titlebar__filemenu" onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => setFileMenuOpen((v) => !v)}>{t('menuFile')}</button>
+          {fileMenuOpen && (
+            <div className="titlebar__filemenu-popup">
+              <button onClick={() => { setFileMenuOpen(false); onOpenFiles() }}>{t('fileOpenFiles')}</button>
+              <button onClick={() => { setFileMenuOpen(false); onOpenFolder() }}>{t('fileOpenFolder')}</button>
+              <button onClick={() => { setFileMenuOpen(false); onImportM3U() }}>{t('fileImportM3U')}</button>
+              <button onClick={() => { setFileMenuOpen(false); onExportM3U() }}>{t('fileExportM3U')}</button>
+              <div className="titlebar__filemenu-sep" />
+              <button onClick={() => { setFileMenuOpen(false); onClear() }}>{t('fileClear')}</button>
+            </div>
+          )}
+        </div>
         <button onClick={onOpenSettings}>{t('menuSettings')}</button>
         <button onClick={onOpenAbout}>{t('menuAbout')}</button>
-        <button onClick={onClear}>{t('menuClear')}</button>
       </div>
 
       <span className="titlebar__track">

@@ -7,7 +7,7 @@ const C_TOP  = '#00ff41'
 const C_PEAK = '#99ffbb'
 const C_GRID = 'rgba(0,255,65,0.06)'
 
-export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
+export default function Spectrum({ analyserRef, playing, intensity = 1, mode = 'bars', onContextMenu }) {
   const wrapRef   = useRef(null)
   const canvasRef = useRef(null)
   const rafRef    = useRef(null)
@@ -136,13 +136,32 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
 
         if (barH < 1) continue
 
-        // Gradient bar
-        const grad = ctx.createLinearGradient(0, drawH - barH, 0, drawH)
-        grad.addColorStop(0,    C_TOP)
-        grad.addColorStop(0.45, C_MID)
-        grad.addColorStop(1,    C_BOT)
-        ctx.fillStyle = grad
-        ctx.fillRect(x, drawH - barH, BAR_W, barH)
+        if (mode === 'dots') {
+          const dotStep = 4
+          for (let y = drawH; y > drawH - barH; y -= dotStep) {
+            const alpha = 0.35 + ((drawH - y) / Math.max(1, barH)) * 0.65
+            ctx.fillStyle = `rgba(0,255,65,${alpha.toFixed(3)})`
+            ctx.fillRect(x + 1, y, BAR_W - 2, 2)
+          }
+        } else if (mode === 'mirror') {
+          const half = Math.floor(barH / 2)
+          const cy = Math.floor(drawH / 2)
+          const grad = ctx.createLinearGradient(0, cy - half, 0, cy + half)
+          grad.addColorStop(0, C_TOP)
+          grad.addColorStop(0.5, C_MID)
+          grad.addColorStop(1, C_BOT)
+          ctx.fillStyle = grad
+          ctx.fillRect(x, cy - half, BAR_W, half)
+          ctx.fillRect(x, cy, BAR_W, half)
+        } else {
+          // Gradient bar
+          const grad = ctx.createLinearGradient(0, drawH - barH, 0, drawH)
+          grad.addColorStop(0,    C_TOP)
+          grad.addColorStop(0.45, C_MID)
+          grad.addColorStop(1,    C_BOT)
+          ctx.fillStyle = grad
+          ctx.fillRect(x, drawH - barH, BAR_W, barH)
+        }
 
         // Peak dot
         const py = drawH - Math.floor(peaksRef.current[i])
@@ -166,7 +185,7 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
   }, [analyserRef])
 
   return (
-    <div ref={wrapRef} className="spectrum-wrap">
+    <div ref={wrapRef} className="spectrum-wrap" onContextMenu={onContextMenu}>
       <canvas ref={canvasRef} className="spectrum-canvas" />
     </div>
   )

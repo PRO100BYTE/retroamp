@@ -166,6 +166,46 @@ body {
   flex-shrink: 0;
 }
 
+.titlebar__filemenu {
+  position: relative;
+}
+
+.titlebar__filemenu-popup {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 220px;
+  background: var(--bg2);
+  border: 1px solid var(--green-border);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--green) 18%, transparent);
+  display: flex;
+  flex-direction: column;
+  z-index: 260;
+  padding: 4px;
+}
+
+.titlebar__filemenu-popup button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  font-family: var(--font);
+  font-size: 11px;
+  padding: 6px 8px;
+  cursor: pointer;
+}
+
+.titlebar__filemenu-popup button:hover {
+  background: var(--green-dark);
+  color: var(--green);
+}
+
+.titlebar__filemenu-sep {
+  height: 1px;
+  background: var(--border);
+  margin: 3px 0;
+}
+
 .titlebar__menu button {
   background: rgba(0,0,0,0.25);
   border: 1px solid rgba(0,0,0,0.3);
@@ -404,6 +444,18 @@ body {
 .playlist__ctx button:hover {
   background: var(--green-dark);
   color: var(--green);
+}
+
+.viz__ctx {
+  min-width: 190px;
+}
+
+.viz__ctx-title {
+  padding: 4px 8px;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+  font-size: 10px;
 }
 
 /* ── Right panel ────────────────────────────────────────────────── */

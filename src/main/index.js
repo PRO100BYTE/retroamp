@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
-import { join, dirname, resolve, isAbsolute } from 'path'
+import { join, dirname, resolve, isAbsolute, basename, extname } from 'path'
 import { readdir, readFile, writeFile } from 'fs/promises'
 import { parseFile } from 'music-metadata'
 
@@ -90,6 +90,44 @@ ipcMain.handle('dialog:openFolder', async () => {
 
 ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const list = Array.isArray(filePaths) ? filePaths : []
+
+  const guessCoverMime = (fileName) => {
+    const ext = extname(fileName).toLowerCase()
+    if (ext === '.png') return 'image/png'
+    if (ext === '.webp') return 'image/webp'
+    if (ext === '.gif') return 'image/gif'
+    return 'image/jpeg'
+  }
+
+  const coverFromImageFile = async (targetPath) => {
+    try {
+      const data = await readFile(targetPath)
+      const mime = guessCoverMime(targetPath)
+      return `data:${mime};base64,${Buffer.from(data).toString('base64')}`
+    } catch {
+      return null
+    }
+  }
+
+  const findExternalCover = async (audioPath) => {
+    const dir = dirname(audioPath)
+    const base = basename(audioPath, extname(audioPath))
+    const candidates = [
+      `${base}.jpg`, `${base}.jpeg`, `${base}.png`,
+      'cover.jpg', 'cover.jpeg', 'cover.png',
+      'folder.jpg', 'folder.jpeg', 'folder.png',
+      'front.jpg', 'front.jpeg', 'front.png',
+      'album.jpg', 'album.jpeg', 'album.png',
+      'albumart.jpg', 'albumart.jpeg', 'albumart.png',
+    ]
+    for (const name of candidates) {
+      const candidate = join(dir, name)
+      const found = await coverFromImageFile(candidate)
+      if (found) return found
+    }
+    return null
+  }
+
   const out = await Promise.all(list.map(async (filePath) => {
     try {
       const meta = await parseFile(filePath, { duration: true, skipCovers: false })
@@ -100,6 +138,9 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
       if (pic?.data) {
         const mime = pic.format || 'image/jpeg'
         cover = `data:${mime};base64,${Buffer.from(pic.data).toString('base64')}`
+      }
+      if (!cover) {
+        cover = await findExternalCover(filePath)
       }
       return {
         path: filePath,

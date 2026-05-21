@@ -18,6 +18,7 @@ const DEFAULT_SETTINGS = {
   showCover: true,
   autoPlayOnAdd: true,
   vizIntensity: 1,
+  vizMode: 'bars',
 }
 
 function makeTrack(filePath, meta = {}) {
@@ -69,6 +70,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showAbout, setShowAbout] = useState(false)
+  const [vizMenu, setVizMenu] = useState({ visible: false, x: 0, y: 0 })
   const [settings, setSettings] = useState(loadSettings)
   const t = makeT(settings.language)
 
@@ -88,6 +90,12 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
   }, [settings])
+
+  useEffect(() => {
+    const close = () => setVizMenu((m) => ({ ...m, visible: false }))
+    window.addEventListener('click', close)
+    return () => window.removeEventListener('click', close)
+  }, [])
 
   const audioRef = useRef(null)
   const ctxRef = useRef(null)
@@ -333,6 +341,16 @@ export default function App() {
     if (paths.length) addPaths(paths)
   }, [addPaths])
 
+  const onSpectrumContextMenu = useCallback((e) => {
+    e.preventDefault()
+    setVizMenu({ visible: true, x: e.clientX, y: e.clientY })
+  }, [])
+
+  const setVizMode = useCallback((mode) => {
+    setSettings((prev) => ({ ...prev, vizMode: mode }))
+    setVizMenu((m) => ({ ...m, visible: false }))
+  }, [])
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
@@ -402,7 +420,13 @@ export default function App() {
         />
 
         <div className="right-panel">
-          <Spectrum analyserRef={analyserRef} playing={playing} intensity={settings.vizIntensity} />
+          <Spectrum
+            analyserRef={analyserRef}
+            playing={playing}
+            intensity={settings.vizIntensity}
+            mode={settings.vizMode}
+            onContextMenu={onSpectrumContextMenu}
+          />
 
           <div className="track-meta">
             {settings.showCover && (
@@ -456,6 +480,20 @@ export default function App() {
       {dragOver && (
         <div className="drop-overlay">
           <div className="drop-overlay__inner">{t('dropOverlay')}</div>
+        </div>
+      )}
+
+      {vizMenu.visible && (
+        <div
+          className="playlist__ctx viz__ctx"
+          style={{ left: `${vizMenu.x}px`, top: `${vizMenu.y}px` }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="viz__ctx-title">{t('vizMenuTitle')}</div>
+          <button onClick={() => setVizMode('bars')}>{t('vizBars')}</button>
+          <button onClick={() => setVizMode('dots')}>{t('vizDots')}</button>
+          <button onClick={() => setVizMode('mirror')}>{t('vizMirror')}</button>
         </div>
       )}
 
