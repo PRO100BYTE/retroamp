@@ -1,33 +1,37 @@
 # Architecture
 
-## Processes
+## Runtime Components
 
-- Main process (`src/main/index.js`):
-- Creates BrowserWindow
-- Handles file/folder dialogs
-- Scans folders recursively for audio files
-- Controls window state (min/max/close)
-
-- Preload (`src/preload/index.js`):
-- Exposes `window.electronAPI`
-- Wraps IPC calls and events
+- Tauri backend (`src-tauri/src/lib.rs`):
+	- Native commands for dialogs, metadata, covers, M3U import/export, file URL conversion.
+	- Rust-side filesystem and audio tag parsing.
 
 - Renderer (`src/renderer/src/*`):
-- UI rendering and state management
-- Audio playback and visualizer
-- Playlist interactions and shortcuts
+	- Vue UI, playback state, controls, drag-and-drop.
+	- Web Audio API analyser + canvas visualizer.
+
+- Bridge shim (`src/renderer/src/main.jsx`):
+	- Maps renderer calls to `@tauri-apps/api/core` invokes.
+	- Preserves `window.electronAPI` shape for migration compatibility.
 
 ## Data Flow
 
 1. User opens files/folder via title bar buttons.
-2. Renderer calls preload API (`openFiles`, `openFolder`).
-3. Main returns file paths.
-4. Renderer builds track models and updates playlist.
-5. Audio engine loads selected file URL and plays.
-6. Spectrum reads `AnalyserNode` frequency bins each frame.
+2. Renderer calls bridge API (`openFiles`, `openFolder`, etc.).
+3. Bridge invokes native Tauri commands.
+4. Backend returns file paths and metadata.
+5. Renderer builds track models and starts playback via file URL.
+6. Cover is loaded lazily per current track.
+7. Spectrum reads `AnalyserNode` bins each animation frame.
 
 ## Security Notes
 
-- Renderer does not access Node APIs directly.
-- IPC surface is intentionally minimal.
-- Keep preload API explicit and narrow.
+- Renderer does not access local filesystem directly.
+- Native command surface is explicit and intentionally narrow.
+- Keep command payloads small and serializable (especially playlist metadata arrays).
+
+## Build Pipeline
+
+- `npm run build:web` builds renderer assets to `dist/`.
+- `npm run build` runs Tauri build and bundles Windows artifacts.
+- Tauri config (`src-tauri/tauri.conf.json`) uses runner scripts to avoid PATH-related failures.

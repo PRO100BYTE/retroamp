@@ -45,5 +45,5 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build App (Debug)
-        run: npx tauri build --debug
+      - name: Build App
+        run: npm run build

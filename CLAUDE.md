@@ -4,33 +4,33 @@ Read this file before making changes.
 
 ## Project in One Sentence
 
-RetroAmp is a retro-themed Windows desktop audio player with playlist management and spectrum visualization.
+RetroAmp is a retro-themed Windows desktop audio player built on Tauri + Vue with native metadata and playlist workflows.
 
 ## Key Files
 
 | File | Purpose |
 |---|---|
-| `src/main/index.js` | Electron window setup, IPC handlers, file/folder dialogs |
-| `src/preload/index.js` | Safe API bridge from main process to renderer |
-| `src/renderer/src/App.jsx` | Playback state, keyboard handling, drag-and-drop integration |
-| `src/renderer/src/components/Spectrum.jsx` | Canvas-based frequency bars and peak animation |
-| `src/renderer/src/components/Playlist.jsx` | Playlist display, selection, remove, reorder |
-| `src/renderer/src/components/Controls.jsx` | Transport controls, seek, repeat/shuffle, volume |
+| `src-tauri/src/lib.rs` | Tauri native commands: dialogs, tags, covers, m3u |
+| `src-tauri/tauri.conf.json` | Build/runtime configuration |
+| `src/renderer/src/main.jsx` | Vue bootstrap and native bridge shim |
+| `src/renderer/src/App.vue` | Playback state, playlist, controls, visualization |
 | `src/renderer/src/styles/App.css` | Visual system (CRT/retro styling) |
+| `scripts/tauri-runner.cjs` | Robust Tauri command launcher |
+| `scripts/vite-runner.cjs` | Robust Vite launcher |
 
 ## Coding Style
 
-- React 18 with function components and hooks.
-- Keep components focused and side effects isolated in `useEffect`.
-- Avoid adding new runtime dependencies unless necessary.
-- Keep renderer code resilient to missing metadata/duration.
+- Vue 3 Composition API in renderer.
+- Rust commands in Tauri backend should be small and explicit.
+- Keep renderer resilient to missing metadata and cover payloads.
+- Avoid adding runtime dependencies unless justified.
 
 ## What Not To Do
 
-- Do not disable context isolation.
-- Do not expose unrestricted shell/Node APIs via preload.
-- Do not block UI thread in render loops or drag handlers.
-- Do not break keyboard navigation for accessibility.
+- Do not reintroduce Electron-only APIs.
+- Do not bypass runner scripts for build/dev commands.
+- Do not block UI thread in visualization loops.
+- Do not break keyboard interactions.
 
 ## Running
 
@@ -38,7 +38,6 @@ RetroAmp is a retro-themed Windows desktop audio player with playlist management
 npm install
 npm run dev
 npm run build
-npm run dist:win
 ```
 
 ## UX Priorities

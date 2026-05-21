@@ -13,23 +13,23 @@ Create a focused retro desktop player that feels like a modern app with nostalgi
 
 ## Layout
 
-1. Title bar with app identity and file/folder/clear actions.
+1. Title bar with app identity and file/folder/m3u/settings actions.
 2. Split main area:
 - Left: playlist panel with reorder/remove interactions.
 - Right: full-width spectrum visualizer and now-playing strip.
 3. Bottom transport block:
 - Seek row (time + progress)
 - Playback controls and volume
-- Status/shortcuts row
+- Status/utility row
 
 ## Interaction Model
 
 ### Mouse
 - Single click track: select/play.
 - Double click track: play immediate.
-- Drag playlist item: reorder.
 - Drag files from OS: append to playlist.
 - Click seek bar/volume slider: precise control.
+- Import/export M3U via top actions.
 
 ### Keyboard
 - Space: play/pause
@@ -54,5 +54,5 @@ Create a focused retro desktop player that feels like a modern app with nostalgi
 ## Future Design Extensions
 
 - Theme presets (Amber CRT, Ice Terminal).
-- Optional compact mode.
+- Compact mode refinements.
 - Album-art side card with VHS-like frame effect.

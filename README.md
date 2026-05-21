@@ -1,24 +1,20 @@
 # RetroAmp
 
-> Retro DOS-style music player for Windows — built with Electron + React
+> Retro DOS-style music player for Windows — built with Tauri + Vue
 
 ![RetroAmp screenshot placeholder](resources/screenshot.png)
 
 ## Features
 
-- **Spectrum visualizer** — full Web Audio API analyser with peak indicators, logarithmic bin mapping and smooth decay on pause (ported from the NE-DOS terminal player)
-- **Playlist management** — add individual files or entire folders recursively, reorder by drag & drop, remove tracks
-- **File menu workflow** — open files/folders, import/export M3U via unified File dropdown
-- **Metadata tags** — reads Title/Artist/Album/Year from audio file tags
-- **Album art** — displays embedded cover art and fallback cover images from track folders
-- **Settings panel** — visualizer intensity, auto-play behavior, cover display toggle
-- **Themes** — Matrix Green, Amber CRT, Ice Terminal
-- **Visualizer modes** — Bars, Dots, Mirror (right-click on visualization area)
-- **About dialog** — full program and authors information
-- **Bilingual UI** — Russian and English language support
-- **Drag & drop** — drop audio files from Explorer directly onto the window
-- **Keyboard shortcuts** — full transport control without touching the mouse
-- **Retro CRT aesthetic** — Matrix-green phosphor palette, scanline overlay, monospace font
+- **Native desktop shell** — Tauri backend (Rust) + Vue renderer
+- **Spectrum visualizer** — realtime canvas visualization driven by Web Audio API analyser
+- **Playlist management** — add files, open folder recursively, remove tracks
+- **M3U workflow** — import and export playlist files
+- **Metadata tags** — Title / Artist / Album / Year / Duration
+- **Album art** — embedded artwork extraction from audio metadata
+- **Settings** — compact mode, cover toggle, auto-play toggle, visualizer intensity
+- **Drag & drop** — drop files directly into app window
+- **Retro CRT aesthetic** — high-contrast phosphor-like UI
 
 ## Documentation
 
@@ -49,34 +45,48 @@ MP3, FLAC, OGG, WAV, AAC, M4A, OPUS, WMA
 # Install dependencies
 npm install
 
-# Start in dev mode (hot reload)
+# Start app in dev mode (Tauri + Vite)
 npm run dev
 
-# Package for Windows
-npm run dist:win
+# Build full desktop app (installer + bundles)
+npm run build
+
+# Build only frontend assets
+npm run build:web
 ```
 
 ## Tech Stack
 
-- **Electron 29** — desktop shell
-- **React 18** — UI
+- **Tauri 2** — native desktop runtime and packaging
+- **Rust** — native commands (dialogs, tags, covers, m3u)
+- **Vue 3** — UI
 - **Web Audio API** — spectrum analyser
-- **electron-vite** — build tooling
-- **electron-builder** — packaging / NSIS installer
+- **Vite** — frontend build tooling
 
 ## Project Structure
 
 ```
-src/
-  main/       — Electron main process (window, IPC, file dialogs)
-  preload/    — Context bridge (safe IPC exposure to renderer)
-  renderer/
-    src/
-      App.jsx               — Root: state, audio engine, keyboard/DnD
-      components/
-        TitleBar.jsx        — Custom frameless titlebar
-        Playlist.jsx        — Track list with DnD reorder
-        Spectrum.jsx        — Canvas spectrum visualizer
-        Controls.jsx        — Transport, seek, volume
-      styles/App.css        — Global retro styles
+src-tauri/
+  src/lib.rs                — Native commands and Tauri app bootstrap
+  tauri.conf.json           — Desktop app configuration
+
+src/renderer/
+  index.html                — Frontend entry HTML
+  src/
+    App.vue                 — Player UI and state
+    main.jsx                — Vue bootstrap + Tauri bridge shim
+    styles/App.css          — Global retro styles
+
+scripts/
+  tauri-runner.cjs          — Robust Tauri command runner for Windows PATH quirks
+  vite-runner.cjs           — Direct Vite runner for Tauri pre-commands
 ```
+
+## CI/CD
+
+- `CI` workflow: validates frontend build and native Windows build on push/PR
+- `Release` workflow: on tag `v*` builds app and publishes artifacts to GitHub Releases
+
+See:
+- [.github/workflows/ci.yml](.github/workflows/ci.yml)
+- [.github/workflows/release.yml](.github/workflows/release.yml)

@@ -1,11 +1,11 @@
 # AGENTS.md — AI Agent Instructions for RetroAmp
 
-This file provides guidance for autonomous AI coding agents working on the RetroAmp codebase.
+Guidance for coding agents working on the current RetroAmp codebase.
 
 ## Project Overview
 
-RetroAmp is a Windows desktop music player built with Electron + React.
-It includes a retro CRT-style UI, playlist management, drag-and-drop, and a real-time spectrum visualizer based on Web Audio API.
+RetroAmp is now a Tauri + Vue Windows desktop player (no Electron runtime).
+The app includes native file dialogs, metadata parsing, cover extraction, M3U import/export, and a realtime spectrum visualizer.
 
 ## Development Environment
 
@@ -13,47 +13,51 @@ It includes a retro CRT-style UI, playlist management, drag-and-drop, and a real
 npm install
 npm run dev
 npm run build
-npm run dist:win
 ```
+
+Useful scripts:
+
+- `npm run dev` — run app in Tauri dev mode
+- `npm run build` — full desktop build
+- `npm run build:web` — frontend-only build
 
 ## Core Conventions
 
-- Keep renderer process sandboxed through preload bridge (`contextIsolation: true`).
-- Do not expose unrestricted Node APIs to renderer.
-- File system access must go through IPC in `src/main/index.js` and `src/preload/index.js`.
-- Keep visualizer logic performant: avoid heavy allocations in animation loops.
-- Use CRLF-safe terminal text where applicable in docs and logs for Windows clarity.
+- Keep native functionality inside `src-tauri/src/lib.rs` commands.
+- Keep renderer logic in `src/renderer/src/App.vue` and avoid direct FS access from browser code.
+- Use the bridge in `src/renderer/src/main.jsx` (`window.electronAPI` compatibility shim) for all native actions.
+- Avoid heavy allocations in visualization loops.
 
 ## Where to Put Code
 
 | What | Where |
 |---|---|
-| Electron app/window/IPC | `src/main/index.js` |
-| Secure renderer API bridge | `src/preload/index.js` |
-| App state and audio engine | `src/renderer/src/App.jsx` |
-| Spectrum rendering | `src/renderer/src/components/Spectrum.jsx` |
-| Playlist UI/behavior | `src/renderer/src/components/Playlist.jsx` |
-| Controls transport/seek/volume | `src/renderer/src/components/Controls.jsx` |
-| Styling and visual language | `src/renderer/src/styles/App.css` |
+| Native dialogs/tags/covers/m3u commands | `src-tauri/src/lib.rs` |
+| Tauri app/runtime config | `src-tauri/tauri.conf.json` |
+| Renderer boot + native bridge | `src/renderer/src/main.jsx` |
+| Player UI/state/audio engine | `src/renderer/src/App.vue` |
+| Global visual language | `src/renderer/src/styles/App.css` |
+| Build runner scripts | `scripts/tauri-runner.cjs`, `scripts/vite-runner.cjs` |
+| CI/CD workflows | `.github/workflows/*.yml` |
 
 ## Testing Checklist (Manual)
 
-- Open files and open folder dialogs both work.
-- Drag-and-drop from Explorer works for supported audio formats.
-- Track reorder by drag-and-drop preserves currently playing track index.
-- Playback controls work via mouse and keyboard shortcuts.
-- Visualizer keeps full width and smooth decay when paused.
-- Build and packaging succeed (`npm run dist:win`).
+- Open files and open folder work.
+- Drag/drop from Explorer appends tracks.
+- Tags (title/artist/album/year) are visible.
+- Embedded covers load for current track.
+- Visualizer reacts during playback.
+- M3U import and export both work.
+- `npm run build` succeeds.
 
 ## Common Pitfalls
 
-- Large folders can return thousands of files: keep folder scan async and resilient.
-- Creating many `AudioContext` instances can break audio on some systems.
-- In renderer, avoid direct `require('fs')`; use preload APIs.
-- On Windows, file URLs must be encoded correctly (`file:///...`).
+- Windows PATH may not contain `cargo`/`npm`/`node` in nested commands. Use runner scripts, do not bypass them.
+- `beforeBuildCommand` in Tauri config must not call `npm run build` (recursion risk).
+- Keep `TrackMeta` structs deserializable when receiving arrays from JS commands.
 
-## Pull Request Notes
+## PR Notes
 
-- Prefer small focused commits.
-- Mention UI/UX impact for visual changes.
+- Keep commits focused.
+- Mention user-visible impact.
 - Do not force-push without explicit approval.

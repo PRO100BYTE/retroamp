@@ -1,5 +1,6 @@
-import { createApp } from 'vue'
-import App from './App.vue'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import App from './App.jsx'
 import './styles/App.css'
 import { invoke } from '@tauri-apps/api/core'
 import { getCurrentWindow } from '@tauri-apps/api/window'
@@ -14,7 +15,9 @@ if (!window.electronAPI) {
 		readCover: (filePath) => invoke('media_read_cover', { path: filePath }),
 		toFileUrl: (filePath) => invoke('media_to_file_url', { path: filePath }),
 		importM3U: () => invoke('playlist_import_m3u'),
-		exportM3U: (tracks) => invoke('playlist_export_m3u', { tracks }),
+		exportM3U: (payload) => invoke('playlist_export_m3u', {
+			tracks: Array.isArray(payload?.tracks) ? payload.tracks : [],
+		}),
 		minimize: () => appWindow.minimize(),
 		maximize: () => appWindow.toggleMaximize(),
 		close: () => appWindow.close(),
@@ -29,4 +32,8 @@ if (!window.electronAPI) {
 	}
 }
 
-createApp(App).mount('#root')
+ReactDOM.createRoot(document.getElementById('root')).render(
+	<React.StrictMode>
+		<App />
+	</React.StrictMode>
+)
