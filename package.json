@@ -6,11 +6,14 @@
   "author": "PRO100BYTE",
   "license": "MIT",
   "scripts": {
-    "dev": "vite --config vite.renderer.config.mjs",
-    "build": "vite build --config vite.renderer.config.mjs",
+    "dev": "tauri dev",
+    "dev:web": "vite --config vite.renderer.config.mjs",
+    "build": "tauri build",
+    "build:web": "vite build --config vite.renderer.config.mjs",
     "preview": "vite preview --config vite.renderer.config.mjs",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "ci": "npm run build:web"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
