@@ -8,6 +8,95 @@ const AUDIO_EXTS = new Set(['.mp3', '.flac', '.ogg', '.wav', '.aac', '.m4a', '.o
 const WINDOW_MIN_NORMAL = { width: 720, height: 500 }
 const WINDOW_MIN_COMPACT = { width: 330, height: 330 }
 
+function normalizePictureMime(format) {
+  const value = String(format || '').toLowerCase().trim()
+  if (!value) return null
+  if (value === 'jpg' || value === 'image/jpg' || value === 'jpeg') return 'image/jpeg'
+  if (value === 'png' || value === 'image/png') return 'image/png'
+  if (value === 'gif' || value === 'image/gif') return 'image/gif'
+  if (value === 'webp' || value === 'image/webp') return 'image/webp'
+  if (value.startsWith('image/')) return value
+  return null
+}
+
+function pictureScore(picture) {
+  const hint = `${picture?.type || ''} ${picture?.name || ''} ${picture?.description || ''}`.toLowerCase()
+  let score = 0
+  if (hint.includes('front')) score += 100
+  if (hint.includes('cover')) score += 80
+  if (hint.includes('folder')) score += 60
+  if (picture?.data?.length) score += Math.min(50, Math.floor(picture.data.length / 16384))
+  return score
+}
+
+function pickBestPicture(pictures) {
+  const valid = (pictures || []).filter((picture) => picture?.data && picture.data.length > 0)
+  if (!valid.length) return null
+  return [...valid].sort((a, b) => pictureScore(b) - pictureScore(a))[0]
+}
+
+function extractNativePictures(nativeTags) {
+  const tags = []
+  for (const values of Object.values(nativeTags || {})) {
+    for (const entry of values || []) {
+      const value = entry?.value
+      if (Array.isArray(value)) {
+        for (const sub of value) {
+          if (sub?.data && sub.data.length > 0) tags.push(sub)
+        }
+      } else if (value?.data && value.data.length > 0) {
+        tags.push(value)
+      }
+    }
+  }
+  return tags
+}
+
+function pictureToDataUrl(picture) {
+  if (!picture?.data || picture.data.length === 0) return null
+  const raw = Buffer.from(picture.data)
+  const mime = normalizePictureMime(picture.format) || 'image/jpeg'
+  return `data:${mime};base64,${raw.toString('base64')}`
+}
+
+function guessCoverMime(fileName) {
+  const ext = extname(fileName).toLowerCase()
+  if (ext === '.png') return 'image/png'
+  if (ext === '.webp') return 'image/webp'
+  if (ext === '.gif') return 'image/gif'
+  return 'image/jpeg'
+}
+
+async function coverFromImageFile(targetPath) {
+  try {
+    const data = await readFile(targetPath)
+    const raw = Buffer.from(data)
+    const mime = guessCoverMime(targetPath)
+    return `data:${mime};base64,${raw.toString('base64')}`
+  } catch {
+    return null
+  }
+}
+
+async function findExternalCover(audioPath) {
+  const dir = dirname(audioPath)
+  const base = basename(audioPath, extname(audioPath))
+  const candidates = [
+    `${base}.jpg`, `${base}.jpeg`, `${base}.png`,
+    'cover.jpg', 'cover.jpeg', 'cover.png',
+    'folder.jpg', 'folder.jpeg', 'folder.png',
+    'front.jpg', 'front.jpeg', 'front.png',
+    'album.jpg', 'album.jpeg', 'album.png',
+    'albumart.jpg', 'albumart.jpeg', 'albumart.png',
+  ]
+  for (const name of candidates) {
+    const candidate = join(dir, name)
+    const found = await coverFromImageFile(candidate)
+    if (found) return found
+  }
+  return null
+}
+
 const isDev = process.env.NODE_ENV === 'development'
 
 /** @type {BrowserWindow | null} */
