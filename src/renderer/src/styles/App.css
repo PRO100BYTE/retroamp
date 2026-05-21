@@ -285,7 +285,14 @@ body {
 }
 
 .app--compact .track-meta__cover-wrap {
-  display: none;
+  width: 54px;
+  min-width: 54px;
+  padding: 4px;
+}
+
+.app--compact .track-meta__cover {
+  width: 44px;
+  height: 44px;
 }
 
 .app--compact .controls {
@@ -367,6 +374,17 @@ body {
 
   .app--compact .track-meta {
     min-height: 0;
+  }
+
+  .app--compact .track-meta__cover-wrap {
+    width: 42px;
+    min-width: 42px;
+    padding: 3px;
+  }
+
+  .app--compact .track-meta__cover {
+    width: 34px;
+    height: 34px;
   }
 
   .app--compact .track-info {
@@ -772,6 +790,12 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.track-info__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
 /* ── Controls ───────────────────────────────────────────────────── */

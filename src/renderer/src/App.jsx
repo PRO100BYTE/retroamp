@@ -25,17 +25,20 @@ const DEFAULT_SETTINGS = {
 function makeTrack(filePath, meta = {}) {
   const sep = filePath.includes('\\') ? '\\' : '/'
   const name = filePath.split(sep).pop() || filePath
+  const parent = filePath.split(sep).slice(-2, -1)[0] || ''
   const title = meta.title || name
     .replace(/\.[^.]+$/, '')
     .replace(/^\d+[\s._-]+/, '')
     .replace(/[_]/g, ' ')
+  const artist = typeof meta.artist === 'string' ? meta.artist.trim() : ''
+  const album = typeof meta.album === 'string' && meta.album.trim() ? meta.album.trim() : parent
   return {
     id: ++_id,
     path: filePath,
     name,
     title,
-    artist: meta.artist || '',
-    album: meta.album || '',
+    artist,
+    album,
     year: meta.year || '',
     cover: meta.cover || null,
     duration: Number.isFinite(meta.duration) ? meta.duration : 0,
@@ -398,6 +401,9 @@ export default function App() {
   }, [togglePlay, playNext, playPrev, stop, currentTime, duration])
 
   const currentTrack = tracks[currentIdx] ?? null
+  const currentArtist = currentTrack?.artist || t('unknownArtist')
+  const currentAlbum = currentTrack?.album || t('unknownAlbum')
+  const currentYear = currentTrack?.year ? String(currentTrack.year) : null
 
   return (
     <div
@@ -458,11 +464,14 @@ export default function App() {
               <span className="track-info__title">
                 {currentTrack ? currentTrack.title : t('noTrackLoaded')}
               </span>
-              <span className="track-info__sub">
-                {currentTrack
-                  ? `${currentTrack.artist || t('unknownArtist')}${currentTrack.album ? ` • ${currentTrack.album}` : ''}${currentTrack.year ? ` (${currentTrack.year})` : ''}`
-                  : t('dropHint')}
-              </span>
+              {currentTrack ? (
+                <div className="track-info__meta">
+                  <span className="track-info__sub">{`${t('metaArtist')}: ${currentArtist}`}</span>
+                  <span className="track-info__sub">{`${t('metaAlbum')}: ${currentAlbum}${currentYear ? ` (${currentYear})` : ''}`}</span>
+                </div>
+              ) : (
+                <span className="track-info__sub">{t('dropHint')}</span>
+              )}
             </div>
           </div>
         </div>

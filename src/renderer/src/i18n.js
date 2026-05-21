@@ -36,6 +36,9 @@ const dict = {
     noTrackLoaded: '─ трек не загружен ─',
     dropHint: 'Перетащите треки или откройте папку, чтобы начать',
     unknownArtist: 'Неизвестный исполнитель',
+    unknownAlbum: 'Неизвестный альбом',
+    metaArtist: 'Исполнитель',
+    metaAlbum: 'Альбом',
 
     settings: 'НАСТРОЙКИ',
     settingsTheme: 'Тема',
@@ -107,6 +110,9 @@ const dict = {
     noTrackLoaded: '─ no track loaded ─',
     dropHint: 'Drop tracks or open a folder to start',
     unknownArtist: 'Unknown artist',
+    unknownAlbum: 'Unknown album',
+    metaArtist: 'Artist',
+    metaAlbum: 'Album',
 
     settings: 'SETTINGS',
     settingsTheme: 'Theme',

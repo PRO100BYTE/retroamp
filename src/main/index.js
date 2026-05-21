@@ -236,6 +236,15 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
       const common = meta.common || {}
       const native = meta.native || {}
       const format = meta.format || {}
+      const fallbackTitle = basename(filePath, extname(filePath))
+      const fallbackAlbum = basename(dirname(filePath)) || null
+      const title = typeof common.title === 'string' && common.title.trim()
+        ? common.title.trim()
+        : fallbackTitle
+      const artist = extractBestArtist(common, native)
+      const album = typeof common.album === 'string' && common.album.trim()
+        ? common.album.trim()
+        : fallbackAlbum
       const commonPictures = Array.isArray(common.picture) ? common.picture : []
       const nativePictures = extractNativePictures(native)
       const embeddedPicture = pickBestPicture([...commonPictures, ...nativePictures])
@@ -245,9 +254,9 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
       }
       return {
         path: filePath,
-        title: common.title || null,
-        artist: extractBestArtist(common, native),
-        album: common.album || null,
+        title,
+        artist,
+        album,
         year: common.year || null,
         duration: Number.isFinite(format.duration) ? format.duration : null,
         cover,

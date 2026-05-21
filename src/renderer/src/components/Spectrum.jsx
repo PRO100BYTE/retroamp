@@ -1,28 +1,26 @@
 import React, { useRef, useEffect } from 'react'
 
-// ─── Colour palette ───────────────────────────────────────────────────────────
-const C_BOT  = '#003311'
-const C_MID  = '#00aa33'
-const C_TOP  = '#00ff41'
+const C_BOT = '#003311'
+const C_MID = '#00aa33'
+const C_TOP = '#00ff41'
 const C_PEAK = '#99ffbb'
 const C_GRID = 'rgba(0,255,65,0.06)'
 
 export default function Spectrum({ analyserRef, playing, intensity = 1, mode = 'bars', onContextMenu }) {
-  const wrapRef   = useRef(null)
+  const wrapRef = useRef(null)
   const canvasRef = useRef(null)
-  const rafRef    = useRef(null)
-
-  // Physics buffers — stored in refs so they survive re-renders
-  const barsRef    = useRef([])
-  const peaksRef   = useRef([])
-  const peakVRef   = useRef([])
-  const decayRef   = useRef(false)
+  const rafRef = useRef(null)
+  const barsRef = useRef([])
+  const peaksRef = useRef([])
+  const peakVRef = useRef([])
+  const decayRef = useRef(false)
+  const prevFreqRef = useRef(null)
 
   useEffect(() => { decayRef.current = !playing }, [playing])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const wrap   = wrapRef.current
+    const wrap = wrapRef.current
     if (!canvas || !wrap) return
 
     const resizeCanvas = () => {
@@ -33,10 +31,10 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
       canvas.height = Math.max(1, Math.round(cssH * dpr))
       canvas.style.width = `${cssW}px`
       canvas.style.height = `${cssH}px`
-      barsRef.current  = []
+      barsRef.current = []
       peaksRef.current = []
       peakVRef.current = []
-      return { dpr, cssW, cssH }
+      prevFreqRef.current = null
     }
 
     const ensureCanvasSize = () => {
@@ -50,7 +48,6 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
       }
     }
 
-    // Keep canvas pixel-perfect with its CSS size
     const ro = new ResizeObserver(entries => {
       for (const entry of entries) {
         if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
@@ -66,14 +63,47 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
     const ctx = canvas.getContext('2d')
 
     let dataArr = null
-    let COLS = 0
+    let colCount = 0
 
     const initBufs = (cols) => {
-      if (cols === COLS) return
-      COLS = cols
-      barsRef.current  = new Float32Array(cols)
+      if (cols === colCount) return
+      colCount = cols
+      barsRef.current = new Float32Array(cols)
       peaksRef.current = new Float32Array(cols)
       peakVRef.current = new Float32Array(cols)
+      prevFreqRef.current = null
+    }
+
+    const fillBar = (ctx2d, x, barWidth, drawH, barH, renderMode) => {
+      if (renderMode === 'dots') {
+        const dotStep = 4
+        for (let y = drawH; y > drawH - barH; y -= dotStep) {
+          const alpha = 0.35 + ((drawH - y) / Math.max(1, barH)) * 0.65
+          ctx2d.fillStyle = `rgba(0,255,65,${alpha.toFixed(3)})`
+          ctx2d.fillRect(x + 1, y, barWidth - 2, 2)
+        }
+        return
+      }
+
+      if (renderMode === 'mirror') {
+        const half = Math.floor(barH / 2)
+        const cy = Math.floor(drawH / 2)
+        const grad = ctx2d.createLinearGradient(0, cy - half, 0, cy + half)
+        grad.addColorStop(0, C_TOP)
+        grad.addColorStop(0.5, C_MID)
+        grad.addColorStop(1, C_BOT)
+        ctx2d.fillStyle = grad
+        ctx2d.fillRect(x, cy - half, barWidth, half)
+        ctx2d.fillRect(x, cy, barWidth, half)
+        return
+      }
+
+      const grad = ctx2d.createLinearGradient(0, drawH - barH, 0, drawH)
+      grad.addColorStop(0, C_TOP)
+      grad.addColorStop(0.45, C_MID)
+      grad.addColorStop(1, C_BOT)
+      ctx2d.fillStyle = grad
+      ctx2d.fillRect(x, drawH - barH, barWidth, barH)
     }
 
     const draw = () => {
@@ -91,56 +121,67 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
       const drawW = Math.max(1, Math.floor(W / dpr))
       const drawH = Math.max(1, Math.floor(H / dpr))
 
-      // BAR_W governs how many columns fit — 5px bars + 1px gap = 6px each
-      const BAR_W   = 5
-      const GAP     = 1
-      const STEP    = BAR_W + GAP
-      const cols    = Math.max(8, Math.floor(drawW / STEP))
+      const BAR_W = mode === 'dots' ? 4 : 5
+      const GAP = 1
+      const STEP = BAR_W + GAP
+      const cols = Math.max(8, Math.floor(drawW / STEP))
       initBufs(cols)
+      const prevFreq = prevFreqRef.current
 
       if (analyser) {
         if (!dataArr || dataArr.length !== analyser.frequencyBinCount) {
           dataArr = new Uint8Array(analyser.frequencyBinCount)
+          prevFreqRef.current = new Uint8Array(analyser.frequencyBinCount)
         }
         if (!decayRef.current) analyser.getByteFrequencyData(dataArr)
       }
 
-      // Clear
       ctx.clearRect(0, 0, drawW, drawH)
 
-      // Horizontal grid lines
       ctx.fillStyle = C_GRID
       for (let y = 0; y < drawH; y += Math.max(1, Math.floor(drawH / 8))) {
         ctx.fillRect(0, y, drawW, 1)
       }
 
+      let activeBars = 0
+
       for (let i = 0; i < cols; i++) {
-        // Frequency bin mapping — logarithmic-ish weighting towards low freqs
         let raw = 0
+        let flux = 0
         if (analyser && dataArr) {
-          const bins  = analyser.frequencyBinCount
-          const frac  = i / cols
-          // map bar index to bin index with mild log curve
-          const binLo = Math.floor(Math.pow(frac,       1.5) * bins * 0.85)
-          const binHi = Math.floor(Math.pow((i + 1) / cols, 1.5) * bins * 0.85)
-          for (let b = binLo; b <= binHi && b < bins; b++) raw = Math.max(raw, dataArr[b])
+          const bins = analyser.frequencyBinCount
+          const from = i / cols
+          const to = (i + 1) / cols
+          const binLo = Math.max(0, Math.min(bins - 1, Math.floor(Math.pow(from, 1.28) * (bins - 1))))
+          const binHi = Math.max(binLo + 1, Math.min(bins, Math.floor(Math.pow(to, 1.28) * (bins - 1))))
+          for (let b = binLo; b < binHi; b++) {
+            raw += dataArr[b]
+            flux += prevFreq ? Math.abs(dataArr[b] - prevFreq[b]) : 0
+          }
+          const count = Math.max(1, binHi - binLo)
+          raw /= count
+          flux /= count
         }
 
-        const target = Math.max(0, Math.min(1, (raw / 255) * intensity))
+        const avgNorm = Math.max(0, (raw - 8) / 220)
+        const fluxNorm = Math.max(0, (flux - 3) / 180)
+        const bandPos = i / cols
+        const bandTilt = (1.18 - Math.min(0.24, bandPos * 0.18)) * (0.98 + bandPos * 0.12)
+        const boosted = (avgNorm * 0.68 + fluxNorm * 0.32) * bandTilt * Math.max(0.6, intensity) * 1.9
+        const target = Math.pow(Math.max(0, Math.min(1, boosted)), 0.86)
+
         if (!decayRef.current) {
-          // Smooth rise, instant snappy fall
           const cur = barsRef.current[i]
           barsRef.current[i] = target > cur
-            ? cur + (target - cur) * 0.55   // rise fast
-            : cur * 0.78                     // fall
+            ? cur + (target - cur) * 0.72
+            : cur * 0.82
         } else {
-          barsRef.current[i] *= 0.82         // decay on pause
+          barsRef.current[i] *= 0.82
         }
 
         const barH = Math.floor(barsRef.current[i] * drawH)
-        const x    = i * STEP
+        const x = i * STEP
 
-        // Peak physics
         if (!decayRef.current && barH >= peaksRef.current[i]) {
           peaksRef.current[i] = barH
           peakVRef.current[i] = 0
@@ -150,35 +191,10 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
         }
 
         if (barH < 1) continue
+        activeBars += 1
 
-        if (mode === 'dots') {
-          const dotStep = 4
-          for (let y = drawH; y > drawH - barH; y -= dotStep) {
-            const alpha = 0.35 + ((drawH - y) / Math.max(1, barH)) * 0.65
-            ctx.fillStyle = `rgba(0,255,65,${alpha.toFixed(3)})`
-            ctx.fillRect(x + 1, y, BAR_W - 2, 2)
-          }
-        } else if (mode === 'mirror') {
-          const half = Math.floor(barH / 2)
-          const cy = Math.floor(drawH / 2)
-          const grad = ctx.createLinearGradient(0, cy - half, 0, cy + half)
-          grad.addColorStop(0, C_TOP)
-          grad.addColorStop(0.5, C_MID)
-          grad.addColorStop(1, C_BOT)
-          ctx.fillStyle = grad
-          ctx.fillRect(x, cy - half, BAR_W, half)
-          ctx.fillRect(x, cy, BAR_W, half)
-        } else {
-          // Gradient bar
-          const grad = ctx.createLinearGradient(0, drawH - barH, 0, drawH)
-          grad.addColorStop(0,    C_TOP)
-          grad.addColorStop(0.45, C_MID)
-          grad.addColorStop(1,    C_BOT)
-          ctx.fillStyle = grad
-          ctx.fillRect(x, drawH - barH, BAR_W, barH)
-        }
+        fillBar(ctx, x, BAR_W, drawH, barH, mode)
 
-        // Peak dot
         const py = drawH - Math.floor(peaksRef.current[i])
         if (py > 0 && py < drawH) {
           ctx.fillStyle = C_PEAK
@@ -186,7 +202,19 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
         }
       }
 
-      // CRT scanlines
+      if (prevFreq && dataArr) prevFreq.set(dataArr)
+
+      if (playing && activeBars === 0) {
+        const pulse = (Date.now() / 180) % cols
+        for (let i = 0; i < Math.min(cols, 10); i++) {
+          const idx = (Math.floor(pulse) + i) % cols
+          const x = idx * STEP
+          const h = Math.max(10, Math.floor(drawH * (0.12 + i * 0.018)))
+          ctx.fillStyle = 'rgba(0,255,65,0.22)'
+          ctx.fillRect(x, drawH - h, BAR_W, h)
+        }
+      }
+
       ctx.fillStyle = 'rgba(0,0,0,0.12)'
       for (let y = 0; y < drawH; y += 2) ctx.fillRect(0, y, drawW, 1)
     }
