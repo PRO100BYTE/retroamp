@@ -91,6 +91,37 @@ ipcMain.handle('dialog:openFolder', async () => {
 ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const list = Array.isArray(filePaths) ? filePaths : []
 
+  const extractBestArtist = (common, native) => {
+    if (typeof common.artist === 'string' && common.artist.trim()) return common.artist.trim()
+    if (Array.isArray(common.artists) && common.artists.length > 0) {
+      const names = common.artists.map((name) => String(name).trim()).filter(Boolean)
+      if (names.length > 0) return names.join(', ')
+    }
+    if (typeof common.albumartist === 'string' && common.albumartist.trim()) return common.albumartist.trim()
+    if (typeof common.composer === 'string' && common.composer.trim()) return common.composer.trim()
+
+    const preferredIds = [
+      'artist', 'artists', 'albumartist', 'album artist', 'performer', 'author', 'composer',
+      'tpe1', 'tpe2', '©art', 'aart', 'wm/albumartist', 'wm/artist', 'authorurl'
+    ]
+
+    for (const values of Object.values(native || {})) {
+      for (const entry of values || []) {
+        const id = String(entry?.id || '').toLowerCase()
+        const value = entry?.value
+        if (!preferredIds.some((needle) => id.includes(needle))) continue
+
+        if (typeof value === 'string' && value.trim()) return value.trim()
+        if (Array.isArray(value)) {
+          const names = value.map((item) => String(item).trim()).filter(Boolean)
+          if (names.length > 0) return names.join(', ')
+        }
+      }
+    }
+
+    return null
+  }
+
   const normalizePictureMime = (format) => {
     const value = String(format || '').toLowerCase().trim()
     if (!value) return null
@@ -194,7 +225,7 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
       return {
         path: filePath,
         title: common.title || null,
-        artist: common.artist || null,
+        artist: extractBestArtist(common, native),
         album: common.album || null,
         year: common.year || null,
         duration: Number.isFinite(format.duration) ? format.duration : null,

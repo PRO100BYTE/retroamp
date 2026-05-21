@@ -183,6 +183,7 @@ body {
   z-index: 260;
   padding: 4px;
   color: var(--text);
+  font-size: 12px;
 }
 
 .titlebar__filemenu-popup button {
@@ -190,8 +191,10 @@ body {
   border: none;
   text-align: left;
   font-family: var(--font);
-  font-size: 11px;
-  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: normal;
+  letter-spacing: 0.2px;
+  padding: 8px 10px;
   cursor: pointer;
 }
 
@@ -201,7 +204,8 @@ body {
   margin: 3px 0;
 }
 
-.titlebar__menu button {
+.titlebar__menu > button,
+.titlebar__filemenu > button {
   background: rgba(0,0,0,0.25);
   border: 1px solid rgba(0,0,0,0.3);
   color: #000;
@@ -213,7 +217,9 @@ body {
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
-.titlebar__menu button:hover {
+
+.titlebar__menu > button:hover,
+.titlebar__filemenu > button:hover {
   background: rgba(0,0,0,0.45);
   color: var(--green);
 }
@@ -428,11 +434,11 @@ body {
 
 .playlist__ctx button {
   font-family: var(--font);
-  font-size: 11px;
+  font-size: 13px;
   background: transparent;
   border: none;
   text-align: left;
-  padding: 6px 8px;
+  padding: 8px 10px;
   cursor: pointer;
 }
 
@@ -442,8 +448,10 @@ body {
   border: none;
   text-align: left;
   font-family: var(--font);
-  font-size: 11px;
-  padding: 6px 8px;
+  font-size: 13px;
+  font-weight: normal;
+  letter-spacing: 0.2px;
+  padding: 8px 10px;
   cursor: pointer;
   position: relative;
 }
