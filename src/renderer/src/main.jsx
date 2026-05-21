@@ -16,9 +16,21 @@ if (!window.electronAPI) {
 		toFileUrl: (filePath) => Promise.resolve(convertFileSrc(filePath)),
 		readAudioDataUrl: (filePath) => invoke('media_read_audio_data_url', { path: filePath }),
 		importM3U: () => invoke('playlist_import_m3u'),
-		exportM3U: (payload) => invoke('playlist_export_m3u', {
-			tracks: Array.isArray(payload?.tracks) ? payload.tracks : [],
-		}),
+		exportM3U: (payload) => {
+			const tracks = Array.isArray(payload?.tracks) ? payload.tracks : []
+			// Normalize types to match Rust TrackMeta struct
+			const normalized = tracks.map((t) => ({
+				path:     String(t.path || ''),
+				title:    t.title  != null && String(t.title).trim()  ? String(t.title).trim()  : null,
+				artist:   t.artist != null && String(t.artist).trim() ? String(t.artist).trim() : null,
+				album:    t.album  != null && String(t.album).trim()  ? String(t.album).trim()  : null,
+				year:     t.year   != null && Number.isInteger(Number(t.year)) && Number(t.year) > 0
+				            ? Number(t.year)
+				            : null,
+				duration: typeof t.duration === 'number' && t.duration > 0 ? t.duration : null,
+			}))
+			return invoke('playlist_export_m3u', { tracks: normalized })
+		},
 		minimize: () => appWindow.minimize(),
 		maximize: () => appWindow.toggleMaximize(),
 		close: () => appWindow.close(),

@@ -682,24 +682,22 @@ export default function App() {
           <div className="viz__ctx-title">{t('vizMenuTitle')}</div>
           {!settings.showLargeCover && (
             <>
-              <button
-                className={settings.vizMode === 'bars' ? 'menu-item menu-item--active' : 'menu-item'}
-                onClick={() => setVizMode('bars')}
-              >
-                {t('vizBars')}
-              </button>
-              <button
-                className={settings.vizMode === 'dots' ? 'menu-item menu-item--active' : 'menu-item'}
-                onClick={() => setVizMode('dots')}
-              >
-                {t('vizDots')}
-              </button>
-              <button
-                className={settings.vizMode === 'mirror' ? 'menu-item menu-item--active' : 'menu-item'}
-                onClick={() => setVizMode('mirror')}
-              >
-                {t('vizMirror')}
-              </button>
+              {[
+                ['bars',        'vizBars'],
+                ['dots',        'vizDots'],
+                ['mirror',      'vizMirror'],
+                ['line',        'vizLine'],
+                ['oscilloscope','vizOscilloscope'],
+                ['flame',       'vizFlame'],
+              ].map(([modeKey, i18nKey]) => (
+                <button
+                  key={modeKey}
+                  className={settings.vizMode === modeKey ? 'menu-item menu-item--active' : 'menu-item'}
+                  onClick={() => setVizMode(modeKey)}
+                >
+                  {t(i18nKey)}
+                </button>
+              ))}
               <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
             </>
           )}

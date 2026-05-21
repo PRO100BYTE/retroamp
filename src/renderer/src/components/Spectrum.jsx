@@ -1,244 +1,358 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect } from 'react'
+
+// Color palette
+const C_TOP    = '#00ff41'
+const C_MID    = '#00aa28'
+const C_BOT    = '#002208'
+const C_PEAK   = '#ccffdd'
+const C_CYAN   = '#00e5ff'
+const C_GRID   = 'rgba(0,255,65,0.05)'
+
+// Logarithmic bin mapping (similar to FL Studio) — gives more resolution to lows
+function logBins(fftSize, barCount) {
+  const bins = []
+  for (let i = 0; i <= barCount; i++) {
+    const t = i / barCount
+    // mix log2 and linear: emphasize low-mids
+    const logT = Math.pow(t, 1.8)
+    bins.push(Math.round(logT * (fftSize - 1)))
+  }
+  return bins
+}
 
 export default function Spectrum({ analyserRef, playing, intensity = 1, mode = 'bars', onContextMenu }) {
-  const wrapRef = useRef(null)
-  const canvasRef = useRef(null)
-  const rafRef = useRef(null)
-  const barsRef = useRef([])
-  const peaksRef = useRef([])
-  const peakVelRef = useRef([])
-  const isPlayingRef = useRef(playing)
-  const [isReady, setIsReady] = useState(false)
+  const wrapRef    = useRef(null)
+  const canvasRef  = useRef(null)
+  const rafRef     = useRef(null)
+  const stateRef   = useRef({
+    bars: [], peaks: [], peakVel: [], binMap: null,
+    freqData: null, waveData: null,
+    flameMap: null,
+    w: 0, h: 0, barCount: 0,
+  })
+  const playingRef = useRef(playing)
+  const modeRef    = useRef(mode)
+  const intensRef  = useRef(intensity)
 
-  useEffect(() => {
-    isPlayingRef.current = playing
-  }, [playing])
+  useEffect(() => { playingRef.current = playing }, [playing])
+  useEffect(() => { modeRef.current = mode }, [mode])
+  useEffect(() => { intensRef.current = intensity }, [intensity])
 
   useEffect(() => {
     const canvas = canvasRef.current
-    const wrap = wrapRef.current
+    const wrap   = wrapRef.current
     if (!canvas || !wrap) return
-
-    setIsReady(true)
     const dpr = window.devicePixelRatio || 1
 
-    // Setup canvas with proper DPR scaling
-    const updateCanvasSize = () => {
+    const resize = () => {
       const rect = wrap.getBoundingClientRect()
-      const w = Math.max(32, rect.width)
-      const h = Math.max(32, rect.height)
-      
-      canvas.width = Math.round(w * dpr)
-      canvas.height = Math.round(h * dpr)
-      canvas.style.width = `${w}px`
-      canvas.style.height = `${h}px`
-      
-      barsRef.current = []
-      peaksRef.current = []
-      peakVelRef.current = []
+      const cw = Math.max(32, Math.round(rect.width))
+      const ch = Math.max(32, Math.round(rect.height))
+      canvas.width  = Math.round(cw * dpr)
+      canvas.height = Math.round(ch * dpr)
+      canvas.style.width  = `${cw}px`
+      canvas.style.height = `${ch}px`
+      const s = stateRef.current
+      s.bars = []; s.peaks = []; s.peakVel = []; s.binMap = null
+      s.flameMap = null; s.w = cw; s.h = ch
     }
-
-    updateCanvasSize()
-    
-    const resizeObserver = new ResizeObserver(() => {
-      updateCanvasSize()
-    })
-    resizeObserver.observe(wrap)
-
-    window.addEventListener('resize', updateCanvasSize)
+    resize()
+    const ro = new ResizeObserver(resize)
+    ro.observe(wrap)
+    window.addEventListener('resize', resize)
 
     const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
 
-    let frequencyData = null
-    let prevFrequencyData = null
-    let barCount = 0
-    let currentBars = []
-    let peaks = []
-    let peakVelocity = []
+    // ─── helpers ────────────────────────────────────────────────────────────
 
-    const getBarCount = (width) => Math.max(16, Math.floor(width / 8))
-    
-    const drawFrame = () => {
-      rafRef.current = requestAnimationFrame(drawFrame)
+    const getGrad = (y0, y1) => {
+      const g = ctx.createLinearGradient(0, y0, 0, y1)
+      g.addColorStop(0,   C_TOP)
+      g.addColorStop(0.5, C_MID)
+      g.addColorStop(1,   C_BOT)
+      return g
+    }
 
-      const analyser = analyserRef?.current
-      if (!analyser) {
-        // Draw "no signal" state
-        const w = canvas.width / dpr
-        const h = canvas.height / dpr
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-        ctx.fillRect(0, 0, w, h)
-        ctx.fillStyle = 'rgba(0, 255, 65, 0.1)'
-        ctx.font = '11px monospace'
-        ctx.textAlign = 'center'
-        ctx.fillText('NO SIGNAL', w / 2, h / 2)
-        return
+    // ─── draw modes ─────────────────────────────────────────────────────────
+
+    const drawBars = (s, barW, gap) => {
+      for (let i = 0; i < s.barCount; i++) {
+        const bh = s.bars[i] * s.h
+        if (bh < 1) continue
+        const x = i * (barW + gap)
+        ctx.fillStyle = getGrad(s.h - bh, s.h)
+        ctx.fillRect(x, s.h - bh, barW, bh)
+        const py = s.h - s.peaks[i]
+        if (py > 0 && py < s.h) {
+          ctx.fillStyle = C_PEAK
+          ctx.fillRect(x, py - 1, barW, 2)
+        }
+      }
+    }
+
+    const drawDots = (s, barW, gap) => {
+      const step = Math.max(3, Math.floor(barW))
+      for (let i = 0; i < s.barCount; i++) {
+        const bh = s.bars[i] * s.h
+        if (bh < 2) continue
+        const x = i * (barW + gap) + Math.floor((barW - step + 1) / 2)
+        for (let y = s.h - step; y > s.h - bh; y -= step + 1) {
+          const alpha = 0.35 + ((s.h - y) / Math.max(1, bh)) * 0.65
+          ctx.fillStyle = `rgba(0,255,65,${alpha.toFixed(2)})`
+          ctx.fillRect(x, y, step, step)
+        }
+        const py = s.h - s.peaks[i]
+        if (py > 0 && py < s.h) {
+          ctx.fillStyle = C_PEAK
+          ctx.fillRect(x, py - 1, step, 2)
+        }
+      }
+    }
+
+    const drawMirror = (s, barW, gap) => {
+      const cy = s.h / 2
+      for (let i = 0; i < s.barCount; i++) {
+        const half = (s.bars[i] * s.h) / 2
+        if (half < 1) continue
+        const x = i * (barW + gap)
+        ctx.fillStyle = getGrad(cy - half, cy + half)
+        ctx.fillRect(x, cy - half, barW, half)
+        ctx.fillRect(x, cy, barW, half)
+        const pd = s.peaks[i] / 2
+        if (pd > 0) {
+          ctx.fillStyle = C_PEAK
+          ctx.fillRect(x, cy - pd - 1, barW, 2)
+          ctx.fillRect(x, cy + pd - 1, barW, 2)
+        }
+      }
+    }
+
+    // Line spectrum: thin spline silhouette (FL Studio "Line" style)
+    const drawLine = (s) => {
+      if (s.barCount < 2) return
+      ctx.beginPath()
+      const step = s.w / Math.max(1, s.barCount - 1)
+      ctx.moveTo(0, s.h - s.bars[0] * s.h)
+      for (let i = 1; i < s.barCount; i++) {
+        const xa = (i - 1) * step
+        const xb = i * step
+        const ya = s.h - s.bars[i - 1] * s.h
+        const yb = s.h - s.bars[i] * s.h
+        ctx.bezierCurveTo(xa + step * 0.5, ya, xb - step * 0.5, yb, xb, yb)
+      }
+      ctx.strokeStyle = C_TOP
+      ctx.lineWidth   = 2
+      ctx.shadowColor = C_TOP
+      ctx.shadowBlur  = 6
+      ctx.stroke()
+      ctx.shadowBlur = 0
+
+      // fill under curve
+      ctx.lineTo(s.w, s.h); ctx.lineTo(0, s.h); ctx.closePath()
+      const gFill = ctx.createLinearGradient(0, 0, 0, s.h)
+      gFill.addColorStop(0,   'rgba(0,255,65,0.25)')
+      gFill.addColorStop(0.6, 'rgba(0,170,40,0.08)')
+      gFill.addColorStop(1,   'rgba(0,0,0,0)')
+      ctx.fillStyle = gFill
+      ctx.fill()
+    }
+
+    // Oscilloscope: time-domain waveform
+    const drawOscilloscope = (s) => {
+      const data = s.waveData
+      if (!data) return
+      const step = s.w / data.length
+      ctx.beginPath()
+      for (let i = 0; i < data.length; i++) {
+        const y = ((data[i] - 128) / 128) * (s.h * 0.45) + s.h / 2
+        i === 0 ? ctx.moveTo(0, y) : ctx.lineTo(i * step, y)
+      }
+      ctx.strokeStyle = C_CYAN
+      ctx.lineWidth   = 1.5
+      ctx.shadowColor = C_CYAN
+      ctx.shadowBlur  = 8
+      ctx.stroke()
+      ctx.shadowBlur  = 0
+      // zero line
+      ctx.strokeStyle = 'rgba(0,229,255,0.15)'
+      ctx.lineWidth   = 1
+      ctx.beginPath()
+      ctx.moveTo(0, s.h / 2); ctx.lineTo(s.w, s.h / 2)
+      ctx.stroke()
+    }
+
+    // Flame: cellular automaton fire effect driven by spectrum (FL Studio "Fire")
+    const drawFlame = (s, barW, gap) => {
+      const cols = s.barCount
+      const rows = Math.max(4, Math.round(s.h / 4))
+      if (!s.flameMap || s.flameMap.length !== cols * rows) {
+        s.flameMap = new Float32Array(cols * rows)
+      }
+      const fm = s.flameMap
+
+      // Seed bottom row from spectrum
+      for (let i = 0; i < cols; i++) {
+        fm[(rows - 1) * cols + i] = s.bars[i] * intensRef.current
       }
 
-      const w = Math.round(canvas.width / dpr)
-      const h = Math.round(canvas.height / dpr)
-      
-      // Reinitialize bars if size changed
-      const newBarCount = getBarCount(w)
-      if (newBarCount !== barCount) {
-        barCount = newBarCount
-        currentBars = new Array(barCount).fill(0)
-        peaks = new Array(barCount).fill(0)
-        peakVelocity = new Array(barCount).fill(0)
-        barsRef.current = currentBars
-        peaksRef.current = peaks
-        peakVelRef.current = peakVelocity
-      }
-
-      // Get frequency data
-      const fftSize = analyser.frequencyBinCount
-      if (!frequencyData || frequencyData.length !== fftSize) {
-        frequencyData = new Uint8Array(fftSize)
-        prevFrequencyData = new Uint8Array(fftSize)
-      }
-
-      if (isPlayingRef.current) {
-        analyser.getByteFrequencyData(frequencyData)
-      } else {
-        // Decay when not playing
-        for (let i = 0; i < frequencyData.length; i++) {
-          frequencyData[i] = Math.max(0, frequencyData[i] - 5)
+      // Propagate upward, spread and cool
+      for (let r = rows - 2; r >= 0; r--) {
+        for (let c = 0; c < cols; c++) {
+          const left  = fm[(r + 1) * cols + Math.max(0, c - 1)]
+          const mid   = fm[(r + 1) * cols + c]
+          const right = fm[(r + 1) * cols + Math.min(cols - 1, c + 1)]
+          fm[r * cols + c] = Math.max(0, (left + mid + right) / 3 - 0.015)
         }
       }
 
-      // Clear canvas
+      // Render cells
+      const cellH = s.h / rows
+      const cellW = barW + gap
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const v = fm[r * cols + c]
+          if (v < 0.01) continue
+          const x = c * cellW
+          const y = r * cellH
+          let color
+          if (v < 0.33)      color = `rgba(200,50,0,${(v / 0.33).toFixed(2)})`
+          else if (v < 0.66) color = `rgba(255,${Math.round(80 + (v - 0.33) / 0.33 * 120)},0,0.9)`
+          else               color = `rgba(255,${Math.round(200 + (v - 0.66) / 0.34 * 55)},${Math.round((v - 0.66) / 0.34 * 80)},1)`
+          ctx.fillStyle = color
+          ctx.fillRect(x, y, cellW + 1, cellH + 1)
+        }
+      }
+    }
+
+    // ─── main loop ──────────────────────────────────────────────────────────
+
+    const frame = () => {
+      rafRef.current = requestAnimationFrame(frame)
+      const s   = stateRef.current
+      const W   = canvas.width
+      const H   = canvas.height
+      const w   = Math.round(W / dpr)
+      const h   = Math.round(H / dpr)
+      const m   = modeRef.current
+      const ipl = playingRef.current
+
+      s.w = w; s.h = h
+
+      const BAR_W = m === 'dots' ? 5 : 6
+      const GAP   = 1
+      const STEP  = BAR_W + GAP
+      const cols  = Math.max(8, Math.floor(w / STEP))
+
+      if (cols !== s.barCount) {
+        s.barCount = cols
+        s.bars     = new Float32Array(cols)
+        s.peaks    = new Float32Array(cols)
+        s.peakVel  = new Float32Array(cols)
+        s.binMap   = null
+        s.flameMap = null
+      }
+
+      const analyser = analyserRef?.current
+
+      // ── fetch data ──
+      if (analyser) {
+        const fftSize = analyser.frequencyBinCount
+        if (!s.freqData || s.freqData.length !== fftSize) {
+          s.freqData = new Uint8Array(fftSize)
+          s.waveData = new Uint8Array(analyser.fftSize)
+        }
+        if (!s.binMap) s.binMap = logBins(fftSize, cols)
+
+        if (ipl) {
+          analyser.getByteFrequencyData(s.freqData)
+          if (m === 'oscilloscope') analyser.getByteTimeDomainData(s.waveData)
+        }
+      }
+
+      // ── process bars ──
+      const RISE = 0.75   // fast attack
+      const FALL = 0.62   // fast fall (lower = faster)
+
+      for (let i = 0; i < cols && analyser && s.freqData; i++) {
+        const lo = s.binMap ? s.binMap[i] : Math.floor(i / cols * s.freqData.length)
+        const hi = s.binMap ? s.binMap[i + 1] : Math.floor((i + 1) / cols * s.freqData.length)
+        let sum = 0
+        for (let b = lo; b <= hi; b++) sum += s.freqData[b]
+        const avg = sum / Math.max(1, hi - lo + 1)
+        const target = Math.pow(avg / 255, 0.8) * Math.max(0.5, intensRef.current)
+
+        const cur = s.bars[i]
+        s.bars[i] = target > cur ? cur + (target - cur) * RISE : cur * FALL
+
+        const bh = s.bars[i] * h
+        if (!ipl) {
+          s.bars[i] *= 0.60   // extra fast decay on pause
+          s.peaks[i] = Math.max(0, s.peaks[i] - 2)
+        } else if (bh >= s.peaks[i]) {
+          s.peaks[i]   = bh
+          s.peakVel[i] = 0
+        } else {
+          s.peakVel[i] = Math.min(8, s.peakVel[i] + 0.6)
+          s.peaks[i]   = Math.max(0, s.peaks[i] - s.peakVel[i])
+        }
+      }
+
+      // ── clear ──
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.fillStyle = '#020702'
       ctx.fillRect(0, 0, w, h)
 
-      // Draw grid
-      ctx.strokeStyle = 'rgba(0, 255, 65, 0.05)'
-      ctx.lineWidth = 1
-      for (let i = 0; i < h; i += Math.max(1, Math.floor(h / 10))) {
-        ctx.beginPath()
-        ctx.moveTo(0, i)
-        ctx.lineTo(w, i)
-        ctx.stroke()
-      }
-
-      // Process bars
-      const barWidth = Math.max(2, Math.floor(w / barCount) - 1)
-      const barGap = Math.max(1, Math.floor(w / barCount) - barWidth)
-      
-      for (let i = 0; i < barCount; i++) {
-        // Map frequency bins to bar
-        const binStart = Math.floor((i / barCount) * fftSize)
-        const binEnd = Math.floor(((i + 1) / barCount) * fftSize)
-        
-        let sum = 0
-        let changeSum = 0
-        for (let b = binStart; b < binEnd; b++) {
-          sum += frequencyData[b]
-          changeSum += Math.abs(frequencyData[b] - (prevFrequencyData[b] || 0))
-        }
-        
-        const binCount = binEnd - binStart
-        const avg = sum / binCount
-        const changeVal = changeSum / binCount
-
-        // Smooth the bar value
-        const target = (avg / 255) * intensity
-        currentBars[i] = currentBars[i] * 0.7 + target * 0.3
-        
-        const barHeight = currentBars[i] * h
-
-        // Update peaks
-        if (barHeight > peaks[i]) {
-          peaks[i] = barHeight
-          peakVelocity[i] = 0
-        } else {
-          peakVelocity[i] = Math.min(10, peakVelocity[i] + 0.5)
-          peaks[i] = Math.max(0, peaks[i] - peakVelocity[i])
-        }
-
-        const x = i * (barWidth + barGap)
-
-        // Draw based on mode
-        if (mode === 'bars') {
-          drawBar(ctx, x, w, h, barHeight, barWidth)
-        } else if (mode === 'dots') {
-          drawDots(ctx, x, w, h, barHeight, barWidth)
-        } else if (mode === 'mirror') {
-          drawMirror(ctx, x, w, h, barHeight, barWidth)
-        }
-
-        // Draw peak indicator
-        if (peaks[i] > 1) {
-          ctx.fillStyle = '#99ffbb'
-          ctx.fillRect(x, h - peaks[i], barWidth, 2)
+      // ── grid ──
+      if (m !== 'oscilloscope' && m !== 'flame') {
+        ctx.fillStyle = C_GRID
+        for (let y = 0; y < h; y += Math.max(4, Math.floor(h / 10))) {
+          ctx.fillRect(0, y, w, 1)
         }
       }
 
-      // Copy current to previous
-      if (frequencyData && prevFrequencyData) {
-        prevFrequencyData.set(frequencyData)
+      // ── draw mode ──
+      if (!analyser) {
+        ctx.fillStyle = 'rgba(0,255,65,0.12)'
+        ctx.font      = '11px monospace'
+        ctx.textAlign = 'center'
+        ctx.fillText('NO SIGNAL', w / 2, h / 2)
+      } else {
+        if      (m === 'bars')        drawBars(s, BAR_W, GAP)
+        else if (m === 'dots')        drawDots(s, BAR_W, GAP)
+        else if (m === 'mirror')      drawMirror(s, BAR_W, GAP)
+        else if (m === 'line')        drawLine(s)
+        else if (m === 'oscilloscope') drawOscilloscope(s)
+        else if (m === 'flame')       drawFlame(s, BAR_W, GAP)
       }
+
+      // ── CRT scanlines ──
+      ctx.fillStyle = 'rgba(0,0,0,0.10)'
+      for (let y = 0; y < h; y += 2) ctx.fillRect(0, y, w, 1)
     }
 
-    const drawBar = (ctx2d, x, w, h, barHeight, barWidth) => {
-      const gradient = ctx2d.createLinearGradient(0, h - barHeight, 0, h)
-      gradient.addColorStop(0, '#00ff41')
-      gradient.addColorStop(0.5, '#00aa33')
-      gradient.addColorStop(1, '#003311')
-      ctx2d.fillStyle = gradient
-      ctx2d.fillRect(x, h - barHeight, barWidth, barHeight)
-    }
-
-    const drawDots = (ctx2d, x, w, h, barHeight, barWidth) => {
-      const dotSize = 3
-      for (let y = h; y > h - barHeight; y -= dotSize + 1) {
-        const alpha = 0.4 + ((h - y) / Math.max(1, barHeight)) * 0.6
-        ctx2d.fillStyle = `rgba(0, 255, 65, ${alpha})`
-        ctx2d.fillRect(x + (barWidth - dotSize) / 2, y, dotSize, dotSize)
-      }
-    }
-
-    const drawMirror = (ctx2d, x, w, h, barHeight, barWidth) => {
-      const halfH = barHeight / 2
-      const centerY = h / 2
-      
-      const gradient = ctx2d.createLinearGradient(0, centerY - halfH, 0, centerY + halfH)
-      gradient.addColorStop(0, '#00ff41')
-      gradient.addColorStop(0.5, '#00aa33')
-      gradient.addColorStop(1, '#003311')
-      
-      ctx2d.fillStyle = gradient
-      ctx2d.fillRect(x, centerY - halfH, barWidth, halfH)
-      ctx2d.fillRect(x, centerY, barWidth, halfH)
-    }
-
-    drawFrame()
+    frame()
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current)
-      resizeObserver.disconnect()
-      window.removeEventListener('resize', updateCanvasSize)
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-      }
+      cancelAnimationFrame(rafRef.current)
+      ro.disconnect()
+      window.removeEventListener('resize', resize)
     }
-  }, [intensity, mode, analyserRef])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [analyserRef])
 
   return (
-    <div 
-      ref={wrapRef} 
-      className="spectrum-wrap" 
+    <div
+      ref={wrapRef}
+      className="spectrum-wrap"
       onContextMenu={onContextMenu}
       style={{ width: '100%', height: '100%' }}
     >
-      <canvas 
-        ref={canvasRef} 
+      <canvas
+        ref={canvasRef}
         className="spectrum-canvas"
         style={{ display: 'block', width: '100%', height: '100%' }}
       />
-      {!isReady && (
-        <div className="spectrum-loading">Initializing...</div>
-      )}
     </div>
   )
 }
