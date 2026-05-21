@@ -1,0 +1,26 @@
+# Logs
+logs
+*.log
+
+# Dependencies
+node_modules/
+.pnpm-debug.log*
+
+# Build output
+out/
+dist/
+
+# Electron-vite cache
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

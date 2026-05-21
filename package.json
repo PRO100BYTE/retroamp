@@ -1,0 +1,46 @@
+{
+  "name": "retroamp",
+  "version": "1.0.0",
+  "description": "Retro DOS-style music player for Windows — spectrum visualizer, playlists, drag & drop",
+  "main": "out/main/index.js",
+  "author": "PRO100BYTE",
+  "license": "MIT",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "dist:win": "npm run build && electron-builder --win"
+  },
+  "dependencies": {
+    "electron": "^29.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.1.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^5.2.0"
+  },
+  "build": {
+    "appId": "com.pro100byte.retroamp",
+    "productName": "RetroAmp",
+    "copyright": "Copyright © 2025 PRO100BYTE",
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "dist",
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ]
+  }
+}
