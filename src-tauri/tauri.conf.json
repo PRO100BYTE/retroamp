@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.pro100byte.retroamp",
   "build": {
-    "frontendDist": "../dist",
+    "frontendDist": "../build/frontend",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "node scripts/vite-runner.cjs dev",
     "beforeBuildCommand": "node scripts/vite-runner.cjs build"

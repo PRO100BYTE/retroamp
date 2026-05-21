@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react'
 import TitleBar from './components/TitleBar'
 import Playlist from './components/Playlist'
 import Spectrum from './components/Spectrum'
+import LargeCover from './components/LargeCover'
 import Controls from './components/Controls'
 import SettingsModal from './components/SettingsModal'
 import AboutModal from './components/AboutModal'
@@ -22,6 +23,7 @@ const DEFAULT_SETTINGS = {
   compactMode: false,
   vizIntensity: 1,
   vizMode: 'bars',
+  showLargeCover: false,  // false = visualizer, true = large cover
 }
 
 function makeTrack(filePath, meta = {}) {
@@ -509,6 +511,11 @@ export default function App() {
     setVizMenu((m) => ({ ...m, visible: false }))
   }, [])
 
+  const toggleLargeCover = useCallback(() => {
+    setSettings((prev) => ({ ...prev, showLargeCover: !prev.showLargeCover }))
+    setVizMenu((m) => ({ ...m, visible: false }))
+  }, [])
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
@@ -591,13 +598,21 @@ export default function App() {
         />
 
         <div className="right-panel">
-          <Spectrum
-            analyserRef={analyserRef}
-            playing={playing}
-            intensity={settings.vizIntensity}
-            mode={settings.vizMode}
-            onContextMenu={onSpectrumContextMenu}
-          />
+          {settings.showLargeCover ? (
+            <LargeCover
+              track={currentTrack}
+              t={t}
+              onContextMenu={onSpectrumContextMenu}
+            />
+          ) : (
+            <Spectrum
+              analyserRef={analyserRef}
+              playing={playing}
+              intensity={settings.vizIntensity}
+              mode={settings.vizMode}
+              onContextMenu={onSpectrumContextMenu}
+            />
+          )}
 
           <div className="track-meta">
             {settings.showCover && (
@@ -665,23 +680,34 @@ export default function App() {
           onContextMenu={(e) => e.preventDefault()}
         >
           <div className="viz__ctx-title">{t('vizMenuTitle')}</div>
+          {!settings.showLargeCover && (
+            <>
+              <button
+                className={settings.vizMode === 'bars' ? 'menu-item menu-item--active' : 'menu-item'}
+                onClick={() => setVizMode('bars')}
+              >
+                {t('vizBars')}
+              </button>
+              <button
+                className={settings.vizMode === 'dots' ? 'menu-item menu-item--active' : 'menu-item'}
+                onClick={() => setVizMode('dots')}
+              >
+                {t('vizDots')}
+              </button>
+              <button
+                className={settings.vizMode === 'mirror' ? 'menu-item menu-item--active' : 'menu-item'}
+                onClick={() => setVizMode('mirror')}
+              >
+                {t('vizMirror')}
+              </button>
+              <div style={{ borderTop: '1px solid var(--border)', margin: '4px 0' }} />
+            </>
+          )}
           <button
-            className={settings.vizMode === 'bars' ? 'menu-item menu-item--active' : 'menu-item'}
-            onClick={() => setVizMode('bars')}
+            className={settings.showLargeCover ? 'menu-item menu-item--active' : 'menu-item'}
+            onClick={toggleLargeCover}
           >
-            {t('vizBars')}
-          </button>
-          <button
-            className={settings.vizMode === 'dots' ? 'menu-item menu-item--active' : 'menu-item'}
-            onClick={() => setVizMode('dots')}
-          >
-            {t('vizDots')}
-          </button>
-          <button
-            className={settings.vizMode === 'mirror' ? 'menu-item menu-item--active' : 'menu-item'}
-            onClick={() => setVizMode('mirror')}
-          >
-            {t('vizMirror')}
+            {settings.showLargeCover ? t('hideAlbumCover') : t('showAlbumCover')}
           </button>
         </div>
       )}

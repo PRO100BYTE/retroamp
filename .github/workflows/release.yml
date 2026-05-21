@@ -28,6 +28,11 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Clean Build Directories
+        run: |
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
+
       - name: Build And Upload Release Assets
         uses: tauri-apps/tauri-action@v0
         env:
@@ -37,4 +42,12 @@ jobs:
           releaseName: "RetroAmp ${{ github.ref_name }}"
           releaseBody: "Automated release for ${{ github.ref_name }}"
           releaseDraft: false
+          prerelease: false
+
+      - name: Upload Artifacts to Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: src-tauri/target/release/bundle/**/*
+          draft: false
           prerelease: false

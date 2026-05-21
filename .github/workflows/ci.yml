@@ -23,8 +23,20 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Clean Build Directories
+        run: |
+          rm -rf build/
+          rm -rf dist/
+
       - name: Build Frontend
         run: npm run ci
+
+      - name: Verify Build Output
+        run: |
+          if [ ! -d "build/frontend" ]; then
+            echo "Error: build/frontend directory not found"
+            exit 1
+          fi
 
   native-check:
     name: Native Tauri Build Check (Windows)
@@ -45,5 +57,17 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      - name: Clean Build Directories
+        run: |
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
+
       - name: Build App
         run: npm run build
+
+      - name: Verify Build Output
+        run: |
+          if (-not (Test-Path "src-tauri/target/release/app.exe")) {
+            Write-Error "Build artifact not found"
+            exit 1
+          }

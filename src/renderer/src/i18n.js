@@ -20,6 +20,8 @@ const dict = {
     vizBars: 'Bars',
     vizDots: 'Dots',
     vizMirror: 'Mirror',
+    showAlbumCover: 'Крупная обложка',
+    hideAlbumCover: 'Визуализация',
 
     playlistTitle: 'ПЛЕЙЛИСТ',
     tracks: 'трек(ов)',
@@ -94,6 +96,8 @@ const dict = {
     vizBars: 'Bars',
     vizDots: 'Dots',
     vizMirror: 'Mirror',
+    showAlbumCover: 'Album Cover',
+    hideAlbumCover: 'Visualization',
 
     playlistTitle: 'PLAYLIST',
     tracks: 'track(s)',
