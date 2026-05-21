@@ -9,45 +9,107 @@ permissions:
   contents: write
 
 jobs:
-  publish:
-    name: Build And Publish Release
+  release:
+    name: Build, Test & Publish Release
     runs-on: windows-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Install Rust Toolchain
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Dependencies
+      - name: Cache Rust target
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/target
+          key: ${{ runner.os }}-rust-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-rust-
+
+      - name: Install dependencies
         run: npm ci
 
-      - name: Clean Build Directories
+      # ── Step 1: Pre-build test (frontend only, fast) ───────────────────────
+      - name: "TEST ①: Build frontend"
+        run: npm run build:web
+
+      - name: "TEST ①: Verify frontend output"
         run: |
-          if (Test-Path build) { Remove-Item -Recurse -Force build }
-          if (Test-Path dist) { Remove-Item -Recurse -Force dist }
+          if (-not (Test-Path "build/frontend/index.html")) {
+            Write-Error "❌ build/frontend/index.html not found"
+            exit 1
+          }
+          Write-Host "✅ Frontend build OK"
 
-      - name: Build And Upload Release Assets
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "RetroAmp ${{ github.ref_name }}"
-          releaseBody: "Automated release for ${{ github.ref_name }}"
-          releaseDraft: false
-          prerelease: false
+      - name: Clean frontend for full rebuild
+        run: Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
 
-      - name: Upload Artifacts to Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+      # ── Step 2: Full production build ─────────────────────────────────────
+      - name: "BUILD ②: Compile full app"
+        run: npm run build
+
+      # ── Step 3: Post-build integrity tests ────────────────────────────────
+      - name: "TEST ③: Verify artifacts exist and non-trivial size"
+        id: verify
+        run: |
+          $exe  = "src-tauri/target/release/app.exe"
+          $msi  = Get-ChildItem "src-tauri/target/release/bundle/msi/*.msi"  | Select-Object -First 1
+          $nsis = Get-ChildItem "src-tauri/target/release/bundle/nsis/*.exe" | Select-Object -First 1
+
+          if (-not (Test-Path $exe))  { Write-Error "❌ app.exe missing";           exit 1 }
+          if (-not $msi)              { Write-Error "❌ MSI installer missing";      exit 1 }
+          if (-not $nsis)             { Write-Error "❌ NSIS installer missing";     exit 1 }
+
+          $minSize = 1MB
+          if ((Get-Item $exe).length  -lt $minSize) { Write-Error "❌ app.exe too small";  exit 1 }
+          if ((Get-Item $msi.FullName).length  -lt $minSize) { Write-Error "❌ MSI too small";   exit 1 }
+          if ((Get-Item $nsis.FullName).length -lt $minSize) { Write-Error "❌ NSIS too small";  exit 1 }
+
+          Write-Host "✅ app.exe   : $([math]::Round((Get-Item $exe).length / 1MB, 2)) MB"
+          Write-Host "✅ MSI       : $([math]::Round((Get-Item $msi.FullName).length / 1MB, 2)) MB — $($msi.Name)"
+          Write-Host "✅ Installer : $([math]::Round((Get-Item $nsis.FullName).length / 1MB, 2)) MB — $($nsis.Name)"
+
+          # Export paths for the upload step
+          echo "msi_path=$($msi.FullName)"   >> $env:GITHUB_OUTPUT
+          echo "msi_name=$($msi.Name)"       >> $env:GITHUB_OUTPUT
+          echo "nsis_path=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
+          echo "nsis_name=$($nsis.Name)"     >> $env:GITHUB_OUTPUT
+
+      - name: "TEST ③: Compute SHA-256 checksums"
+        run: |
+          $msi  = "${{ steps.verify.outputs.msi_path }}"
+          $nsis = "${{ steps.verify.outputs.nsis_path }}"
+          $msiHash  = (Get-FileHash $msi  -Algorithm SHA256).Hash
+          $nsisHash = (Get-FileHash $nsis -Algorithm SHA256).Hash
+          Write-Host "SHA256 MSI  : $msiHash"
+          Write-Host "SHA256 NSIS : $nsisHash"
+          # Save checksums file to include in release
+          "SHA256 (${{ steps.verify.outputs.msi_name }}) = $msiHash`nSHA256 (${{ steps.verify.outputs.nsis_name }}) = $nsisHash" `
+            | Out-File -Encoding utf8 "checksums.txt"
+
+      # ── Step 4: Publish to GitHub Releases ────────────────────────────────
+      - name: "RELEASE ④: Create GitHub Release and upload installers"
+        uses: softprops/action-gh-release@v2
         with:
-          files: src-tauri/target/release/bundle/**/*
+          tag_name: ${{ github.ref_name }}
+          name: "RetroAmp ${{ github.ref_name }}"
+          body: |
+            ## RetroAmp ${{ github.ref_name }}
+
+            ### Installation
+            - **Windows installer (.exe)** — NSIS setup, recommended
+            - **Windows installer (.msi)** — MSI package for enterprise/GPO
+
+            ### Checksums
+            See `checksums.txt` attached to this release.
           draft: false
-          prerelease: false
+          prerelease: ${{ contains(github.ref_name, '-rc') || contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+          files: |
+            ${{ steps.verify.outputs.msi_path }}
+            ${{ steps.verify.outputs.nsis_path }}
+            checksums.txt
+
