@@ -18,7 +18,8 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "howler": "^2.2.4",
-    "music-metadata": "^10.9.1"
+    "music-metadata": "^10.9.1",
+    "wavesurfer.js": "^7.12.7"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",

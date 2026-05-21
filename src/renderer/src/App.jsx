@@ -169,23 +169,58 @@ export default function App() {
     Howler.autoUnlock = true
 
     let analyser = null
-    try {
-      const ctx = Howler.ctx
-      const master = Howler.masterGain
-      if (ctx && master) {
+    let isConnected = false
+    
+    const initAnalyser = () => {
+      try {
+        const ctx = Howler.ctx
+        const master = Howler.masterGain
+        
+        if (!ctx) {
+          console.warn('[Spectrum] No AudioContext available yet')
+          return
+        }
+        
+        if (!master) {
+          console.warn('[Spectrum] No master gain available')
+          return
+        }
+
+        // Create analyser node
         analyser = ctx.createAnalyser()
-        analyser.fftSize = 1024
-        analyser.smoothingTimeConstant = 0.56
-        analyser.minDecibels = -90
-        analyser.maxDecibels = -10
-        master.connect(analyser)
+        analyser.fftSize = 512  // 256 to 2048
+        analyser.smoothingTimeConstant = 0.85
+        analyser.minDecibels = -100
+        analyser.maxDecibels = 0
+
+        // Connect: masterGain -> analyser -> destination
+        if (!isConnected) {
+          master.connect(analyser)
+          analyser.connect(ctx.destination)
+          isConnected = true
+          console.log('[Spectrum] Analyser connected successfully')
+        }
+
         analyserRef.current = analyser
+      } catch (err) {
+        console.error('[Spectrum] Failed to initialize analyser:', err)
+        analyserRef.current = null
       }
-    } catch {
-      analyserRef.current = null
     }
 
+    // Initialize immediately
+    initAnalyser()
+    
+    // Retry in case AudioContext wasn't ready
+    const retryTimeout = setTimeout(() => {
+      if (!analyserRef.current) {
+        console.log('[Spectrum] Retrying analyser init...')
+        initAnalyser()
+      }
+    }, 500)
+
     return () => {
+      clearTimeout(retryTimeout)
       stopTicker()
       unloadCurrentHowl()
       if (analyser) {

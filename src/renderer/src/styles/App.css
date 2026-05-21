@@ -970,6 +970,126 @@ body {
   opacity: 0.6;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   SPECTRUM VISUALIZER STYLES
+   ═══════════════════════════════════════════════════════════════ */
+
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 280px;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  padding: 0;
+  gap: 0;
+}
+
+/* Spectrum wrapper */
+.spectrum-wrap {
+  flex: 1;
+  min-height: 120px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,20,5,0.6));
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Spectrum canvas */
+.spectrum-canvas {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.spectrum-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0.6;
+  z-index: 1;
+}
+
+/* Track metadata section */
+.track-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-bottom: 1px solid var(--border);
+  min-height: 140px;
+  background: var(--bg2);
+}
+
+.track-meta__cover-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+
+.track-meta__cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  image-rendering: pixelated;
+}
+
+.track-meta__cover--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 10px;
+  text-align: center;
+  padding: 10px;
+}
+
+.track-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 10px;
+  line-height: 1.3;
+  min-height: 42px;
+  padding: 0;
+}
+
+.track-info__label {
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 9px;
+}
+
+.track-info__title {
+  color: var(--green);
+  font-weight: bold;
+  word-break: break-word;
+  font-size: 11px;
+}
+
+.track-info__sub {
+  color: var(--text-dim);
+  word-break: break-word;
+  font-size: 10px;
+}
+
 /* Status bar */
 .controls__status {
   display: flex;
