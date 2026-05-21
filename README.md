@@ -12,6 +12,8 @@
 - **Album art** — displays embedded cover art from tracks when available
 - **Settings panel** — visualizer intensity, auto-play behavior, cover display toggle
 - **Themes** — Matrix Green, Amber CRT, Ice Terminal
+- **About dialog** — full program and authors information
+- **Bilingual UI** — Russian and English language support
 - **Drag & drop** — drop audio files from Explorer directly onto the window
 - **Keyboard shortcuts** — full transport control without touching the mouse
 - **Retro CRT aesthetic** — Matrix-green phosphor palette, scanline overlay, monospace font

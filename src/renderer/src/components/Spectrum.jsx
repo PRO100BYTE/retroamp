@@ -25,18 +25,29 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
     const wrap   = wrapRef.current
     if (!canvas || !wrap) return
 
+    const resizeCanvas = () => {
+      const dpr = window.devicePixelRatio || 1
+      const cssW = Math.max(1, Math.round(wrap.clientWidth))
+      const cssH = Math.max(1, Math.round(wrap.clientHeight))
+      canvas.width = Math.max(1, Math.round(cssW * dpr))
+      canvas.height = Math.max(1, Math.round(cssH * dpr))
+      canvas.style.width = `${cssW}px`
+      canvas.style.height = `${cssH}px`
+      barsRef.current  = []
+      peaksRef.current = []
+      peakVRef.current = []
+    }
+
     // Keep canvas pixel-perfect with its CSS size
     const ro = new ResizeObserver(entries => {
       for (const entry of entries) {
-        canvas.width  = Math.round(entry.contentRect.width)
-        canvas.height = Math.round(entry.contentRect.height)
-        // Reset physics on resize
-        barsRef.current  = []
-        peaksRef.current = []
-        peakVRef.current = []
+        if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+          resizeCanvas()
+        }
       }
     })
     ro.observe(wrap)
+    resizeCanvas()
 
     const ctx = canvas.getContext('2d')
 
@@ -59,11 +70,17 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
       const H = canvas.height
       if (!W || !H) return
 
+      const dpr = window.devicePixelRatio || 1
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.scale(dpr, dpr)
+      const drawW = Math.max(1, Math.floor(W / dpr))
+      const drawH = Math.max(1, Math.floor(H / dpr))
+
       // BAR_W governs how many columns fit — 5px bars + 1px gap = 6px each
       const BAR_W   = 5
       const GAP     = 1
       const STEP    = BAR_W + GAP
-      const cols    = Math.floor(W / STEP)
+      const cols    = Math.max(8, Math.floor(drawW / STEP))
       initBufs(cols)
 
       if (analyser) {
@@ -74,12 +91,12 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
       }
 
       // Clear
-      ctx.clearRect(0, 0, W, H)
+      ctx.clearRect(0, 0, drawW, drawH)
 
       // Horizontal grid lines
       ctx.fillStyle = C_GRID
-      for (let y = 0; y < H; y += Math.floor(H / 8)) {
-        ctx.fillRect(0, y, W, 1)
+      for (let y = 0; y < drawH; y += Math.max(1, Math.floor(drawH / 8))) {
+        ctx.fillRect(0, y, drawW, 1)
       }
 
       for (let i = 0; i < cols; i++) {
@@ -105,7 +122,7 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
           barsRef.current[i] *= 0.82         // decay on pause
         }
 
-        const barH = Math.floor(barsRef.current[i] * H)
+        const barH = Math.floor(barsRef.current[i] * drawH)
         const x    = i * STEP
 
         // Peak physics
@@ -120,16 +137,16 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
         if (barH < 1) continue
 
         // Gradient bar
-        const grad = ctx.createLinearGradient(0, H - barH, 0, H)
+        const grad = ctx.createLinearGradient(0, drawH - barH, 0, drawH)
         grad.addColorStop(0,    C_TOP)
         grad.addColorStop(0.45, C_MID)
         grad.addColorStop(1,    C_BOT)
         ctx.fillStyle = grad
-        ctx.fillRect(x, H - barH, BAR_W, barH)
+        ctx.fillRect(x, drawH - barH, BAR_W, barH)
 
         // Peak dot
-        const py = H - Math.floor(peaksRef.current[i])
-        if (py > 0 && py < H) {
+        const py = drawH - Math.floor(peaksRef.current[i])
+        if (py > 0 && py < drawH) {
           ctx.fillStyle = C_PEAK
           ctx.fillRect(x, py, BAR_W, 2)
         }
@@ -137,7 +154,7 @@ export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
 
       // CRT scanlines
       ctx.fillStyle = 'rgba(0,0,0,0.12)'
-      for (let y = 0; y < H; y += 2) ctx.fillRect(0, y, W, 1)
+      for (let y = 0; y < drawH; y += 2) ctx.fillRect(0, y, drawW, 1)
     }
 
     draw()

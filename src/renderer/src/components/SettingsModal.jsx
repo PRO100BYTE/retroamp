@@ -6,21 +6,29 @@ const THEMES = [
   { value: 'ice', label: 'Ice Terminal' },
 ]
 
-export default function SettingsModal({ settings, onChange, onClose }) {
+export default function SettingsModal({ settings, onChange, onClose, t }) {
   const set = (key, value) => onChange({ ...settings, [key]: value })
 
   return (
     <div className="settings" onClick={onClose}>
       <div className="settings__panel" onClick={(e) => e.stopPropagation()}>
         <div className="settings__head">
-          <span>SETTINGS</span>
+          <span>{t('settings')}</span>
           <button onClick={onClose} title="Close">✕</button>
         </div>
 
         <label className="settings__row">
-          <span>Theme</span>
+          <span>{t('settingsTheme')}</span>
           <select value={settings.theme} onChange={(e) => set('theme', e.target.value)}>
-            {THEMES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            {THEMES.map((theme) => <option key={theme.value} value={theme.value}>{t(theme.value === 'matrix' ? 'themeMatrix' : theme.value === 'amber' ? 'themeAmber' : 'themeIce')}</option>)}
+          </select>
+        </label>
+
+        <label className="settings__row">
+          <span>{t('settingsLanguage')}</span>
+          <select value={settings.language} onChange={(e) => set('language', e.target.value)}>
+            <option value="ru">{t('langRu')}</option>
+            <option value="en">{t('langEn')}</option>
           </select>
         </label>
 
@@ -30,7 +38,7 @@ export default function SettingsModal({ settings, onChange, onClose }) {
             checked={settings.showCover}
             onChange={(e) => set('showCover', e.target.checked)}
           />
-          <span>Show album cover</span>
+          <span>{t('settingsShowCover')}</span>
         </label>
 
         <label className="settings__row settings__row--check">
@@ -39,11 +47,11 @@ export default function SettingsModal({ settings, onChange, onClose }) {
             checked={settings.autoPlayOnAdd}
             onChange={(e) => set('autoPlayOnAdd', e.target.checked)}
           />
-          <span>Auto play when first track is added</span>
+          <span>{t('settingsAutoPlay')}</span>
         </label>
 
         <label className="settings__row">
-          <span>Visualizer intensity</span>
+          <span>{t('settingsViz')}</span>
           <input
             type="range"
             min={0.6}
@@ -55,7 +63,7 @@ export default function SettingsModal({ settings, onChange, onClose }) {
         </label>
 
         <div className="settings__footer">
-          <button onClick={onClose}>OK</button>
+          <button onClick={onClose}>{t('settingsOk')}</button>
         </div>
       </div>
     </div>

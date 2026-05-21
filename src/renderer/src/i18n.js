@@ -1,0 +1,126 @@
+export const LANG = {
+  RU: 'ru',
+  EN: 'en',
+}
+
+const dict = {
+  ru: {
+    appSubtitle: 'RetroAmp — ретро музыкальный плеер',
+    menuFile: '[ФАЙЛ]',
+    menuFolder: '[ПАПКА]',
+    menuSettings: '[НАСТРОЙКИ]',
+    menuAbout: '[О ПРОГРАММЕ]',
+    menuClear: '[ОЧИСТИТЬ]',
+
+    playlistTitle: 'ПЛЕЙЛИСТ',
+    tracks: 'трек(ов)',
+    addFile: '+ФАЙЛ',
+    addDir: '+ПАПКА',
+    noTracks: 'ТРЕКОВ НЕТ',
+    emptyHint: 'Перетащите аудио-файлы или используйте [+ФАЙЛ] / [+ПАПКА]',
+
+    nowPlaying: 'СЕЙЧАС ИГРАЕТ',
+    noTrackLoaded: '─ трек не загружен ─',
+    dropHint: 'Перетащите треки или откройте папку, чтобы начать',
+    unknownArtist: 'Неизвестный исполнитель',
+
+    settings: 'НАСТРОЙКИ',
+    settingsTheme: 'Тема',
+    settingsLanguage: 'Язык',
+    settingsShowCover: 'Показывать обложку альбома',
+    settingsAutoPlay: 'Автозапуск при добавлении первого трека',
+    settingsViz: 'Интенсивность визуализатора',
+    settingsOk: 'ОК',
+
+    themeMatrix: 'Matrix Green',
+    themeAmber: 'Amber CRT',
+    themeIce: 'Ice Terminal',
+
+    langRu: 'Русский',
+    langEn: 'English',
+
+    aboutTitle: 'О ПРОГРАММЕ',
+    aboutClose: 'Закрыть',
+    aboutName: 'RetroAmp',
+    aboutDesc: 'Ретро аудиоплеер для Windows на Electron + React.',
+    aboutFeatures: 'Возможности',
+    aboutFeature1: 'Плейлист, drag-n-drop, горячие клавиши',
+    aboutFeature2: 'Спектрограмма в реальном времени',
+    aboutFeature3: 'Теги и встроенные обложки альбомов',
+    aboutFeature4: 'Темы оформления и настройки',
+    aboutAuthors: 'Авторы',
+    aboutAuthorMain: 'Идея и продукт: PRO100BYTE / e.struchkov',
+    aboutAuthorAi: 'Реализация и развитие: GitHub Copilot (GPT-5.3-Codex)',
+
+    statusPlaying: '♪ ИГРАЕТ',
+    statusStopped: '■ ОСТАНОВЛЕН',
+    statusRepeat: 'ПОВТ',
+    statusNoTracks: 'Перетащите файлы или используйте [ФАЙЛ] / [ПАПКА]. Space=play  ←→=seek  ↑↓=vol  M=mute',
+    shortcuts: 'Space=play  Ctrl+←/→=prev/next  ↑↓=vol  M=mute',
+
+    dropOverlay: '▼ ПЕРЕТАЩИТЕ АУДИО-ФАЙЛЫ СЮДА ▼',
+    noCover: 'БЕЗ ОБЛОЖКИ',
+  },
+  en: {
+    appSubtitle: 'RetroAmp — retro DOS music player',
+    menuFile: '[FILE]',
+    menuFolder: '[FOLDER]',
+    menuSettings: '[SETTINGS]',
+    menuAbout: '[ABOUT]',
+    menuClear: '[CLEAR]',
+
+    playlistTitle: 'PLAYLIST',
+    tracks: 'track(s)',
+    addFile: '+FILE',
+    addDir: '+DIR',
+    noTracks: 'NO TRACKS YET',
+    emptyHint: 'Drop audio files or use [+FILE] / [+DIR]',
+
+    nowPlaying: 'NOW PLAYING',
+    noTrackLoaded: '─ no track loaded ─',
+    dropHint: 'Drop tracks or open a folder to start',
+    unknownArtist: 'Unknown artist',
+
+    settings: 'SETTINGS',
+    settingsTheme: 'Theme',
+    settingsLanguage: 'Language',
+    settingsShowCover: 'Show album cover',
+    settingsAutoPlay: 'Auto play when first track is added',
+    settingsViz: 'Visualizer intensity',
+    settingsOk: 'OK',
+
+    themeMatrix: 'Matrix Green',
+    themeAmber: 'Amber CRT',
+    themeIce: 'Ice Terminal',
+
+    langRu: 'Russian',
+    langEn: 'English',
+
+    aboutTitle: 'ABOUT',
+    aboutClose: 'Close',
+    aboutName: 'RetroAmp',
+    aboutDesc: 'Retro desktop music player for Windows built with Electron + React.',
+    aboutFeatures: 'Features',
+    aboutFeature1: 'Playlist, drag-n-drop, keyboard shortcuts',
+    aboutFeature2: 'Real-time spectrum visualizer',
+    aboutFeature3: 'Audio tags and embedded album art',
+    aboutFeature4: 'Themes and app settings',
+    aboutAuthors: 'Authors',
+    aboutAuthorMain: 'Product idea and ownership: PRO100BYTE / e.struchkov',
+    aboutAuthorAi: 'Implementation support: GitHub Copilot (GPT-5.3-Codex)',
+
+    statusPlaying: '♪ PLAYING',
+    statusStopped: '■ STOPPED',
+    statusRepeat: 'RPT',
+    statusNoTracks: 'Drop files or use [FILE] / [FOLDER]. Space=play  ←→=seek  ↑↓=vol  M=mute',
+    shortcuts: 'Space=play  Ctrl+←/→=prev/next  ↑↓=vol  M=mute',
+
+    dropOverlay: '▼ DROP AUDIO FILES HERE ▼',
+    noCover: 'NO COVER',
+  },
+}
+
+export function makeT(lang) {
+  const table = dict[lang] || dict.en
+  return (key) => table[key] || key
+}

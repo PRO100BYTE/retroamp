@@ -4,6 +4,8 @@ import Playlist from './components/Playlist'
 import Spectrum from './components/Spectrum'
 import Controls from './components/Controls'
 import SettingsModal from './components/SettingsModal'
+import AboutModal from './components/AboutModal'
+import { LANG, makeT } from './i18n'
 
 let _id = 0
 
@@ -12,6 +14,7 @@ const AUDIO_RE = /\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i
 const SETTINGS_KEY = 'retroamp:settings:v1'
 const DEFAULT_SETTINGS = {
   theme: 'matrix',
+  language: LANG.RU,
   showCover: true,
   autoPlayOnAdd: true,
   vizIntensity: 1,
@@ -65,7 +68,13 @@ export default function App() {
   const [shuffle, setShuffle] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showAbout, setShowAbout] = useState(false)
   const [settings, setSettings] = useState(loadSettings)
+  const t = makeT(settings.language)
+
+  useEffect(() => {
+    document.documentElement.lang = settings.language
+  }, [settings.language])
 
   const tracksRef = useRef(tracks)
   const currentIdxRef = useRef(currentIdx)
@@ -112,7 +121,8 @@ export default function App() {
     audioRef.current = audio
     audio.volume = volume
 
-    const ctx = new AudioContext()
+    const Ctor = window.AudioContext || window.webkitAudioContext
+    const ctx = new Ctor()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
     analyser.smoothingTimeConstant = 0.8
@@ -356,15 +366,18 @@ export default function App() {
     >
       <TitleBar
         track={currentTrack}
+        t={t}
         onOpenFiles={handleOpenFiles}
         onOpenFolder={handleOpenFolder}
         onOpenSettings={() => setShowSettings(true)}
+        onOpenAbout={() => setShowAbout(true)}
         onClear={clearPlaylist}
       />
 
       <div className="main-area">
         <Playlist
           tracks={tracks}
+          t={t}
           currentIdx={currentIdx}
           playing={playing}
           onSelect={playAt}
@@ -383,20 +396,20 @@ export default function App() {
                 {currentTrack?.cover ? (
                   <img src={currentTrack.cover} alt="Album cover" className="track-meta__cover" />
                 ) : (
-                  <div className="track-meta__cover track-meta__cover--fallback">NO COVER</div>
+                  <div className="track-meta__cover track-meta__cover--fallback">{t('noCover')}</div>
                 )}
               </div>
             )}
 
             <div className="track-info">
-              <span className="track-info__label">NOW PLAYING</span>
+              <span className="track-info__label">{t('nowPlaying')}</span>
               <span className="track-info__title">
-                {currentTrack ? currentTrack.title : '─ no track loaded ─'}
+                {currentTrack ? currentTrack.title : t('noTrackLoaded')}
               </span>
               <span className="track-info__sub">
                 {currentTrack
-                  ? `${currentTrack.artist || 'Unknown artist'}${currentTrack.album ? ` • ${currentTrack.album}` : ''}${currentTrack.year ? ` (${currentTrack.year})` : ''}`
-                  : 'Drop tracks or open a folder to start'}
+                  ? `${currentTrack.artist || t('unknownArtist')}${currentTrack.album ? ` • ${currentTrack.album}` : ''}${currentTrack.year ? ` (${currentTrack.year})` : ''}`
+                  : t('dropHint')}
               </span>
             </div>
           </div>
@@ -410,6 +423,7 @@ export default function App() {
         volume={volume}
         muted={muted}
         repeat={repeat}
+        t={t}
         shuffle={shuffle}
         hasTracks={tracks.length > 0}
         trackCount={tracks.length}
@@ -427,15 +441,23 @@ export default function App() {
 
       {dragOver && (
         <div className="drop-overlay">
-          <div className="drop-overlay__inner">▼ DROP AUDIO FILES HERE ▼</div>
+          <div className="drop-overlay__inner">{t('dropOverlay')}</div>
         </div>
       )}
 
       {showSettings && (
         <SettingsModal
           settings={settings}
+          t={t}
           onChange={setSettings}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showAbout && (
+        <AboutModal
+          t={t}
+          onClose={() => setShowAbout(false)}
         />
       )}
     </div>

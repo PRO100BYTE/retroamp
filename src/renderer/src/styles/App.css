@@ -147,7 +147,7 @@ body {
 
 .titlebar__menu {
   display: flex;
-  gap: 2px;
+  gap: 4px;
   -webkit-app-region: no-drag;
   flex-shrink: 0;
 }
@@ -157,11 +157,12 @@ body {
   border: 1px solid rgba(0,0,0,0.3);
   color: #000;
   font-family: var(--font);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: bold;
-  padding: 1px 7px;
+  padding: 1px 6px;
   cursor: pointer;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 .titlebar__menu button:hover {
   background: rgba(0,0,0,0.45);
@@ -404,6 +405,29 @@ body {
   font-size: 9px;
   color: var(--text-dim);
   background: var(--bg3);
+}
+
+.about .about__section {
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.about .about__name {
+  color: var(--green);
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.about .about__desc {
+  color: var(--text-dim);
+}
+
+.about .about__title {
+  color: var(--green);
+  font-weight: bold;
+  margin-top: 4px;
 }
 
 /* ── Spectrum ───────────────────────────────────────────────────── */

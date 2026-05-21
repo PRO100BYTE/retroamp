@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, onOpenSettings }) {
+export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, onOpenSettings, onOpenAbout, t }) {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
@@ -15,14 +15,15 @@ export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, on
       <span className="titlebar__logo">▓▓ RETROAMP ▓▓</span>
 
       <div className="titlebar__menu">
-        <button onClick={onOpenFiles}>   [FILE]</button>
-        <button onClick={onOpenFolder}>[FOLDER]</button>
-        <button onClick={onOpenSettings}>[SETTINGS]</button>
-        <button onClick={onClear}>[CLEAR]</button>
+        <button onClick={onOpenFiles}>{t('menuFile')}</button>
+        <button onClick={onOpenFolder}>{t('menuFolder')}</button>
+        <button onClick={onOpenSettings}>{t('menuSettings')}</button>
+        <button onClick={onOpenAbout}>{t('menuAbout')}</button>
+        <button onClick={onClear}>{t('menuClear')}</button>
       </div>
 
       <span className="titlebar__track">
-        {trackName ? `♪ ${trackName}${track?.artist ? ` — ${track.artist}` : ''}` : 'RetroAmp — retro DOS music player'}
+        {trackName ? `♪ ${trackName}${track?.artist ? ` — ${track.artist}` : ''}` : t('appSubtitle')}
       </span>
 
       <div className="titlebar__wctrl">

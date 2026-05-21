@@ -4,7 +4,7 @@ import { fmtTime } from '../App'
 export default function Playlist({
   tracks, currentIdx, playing,
   onSelect, onReorder, onRemove,
-  onAddFiles, onAddFolder
+  onAddFiles, onAddFolder, t
 }) {
   const [dragSrc, setDragSrc] = useState(-1)
   const [dragTarget, setDragTarget] = useState(-1)
@@ -43,11 +43,11 @@ export default function Playlist({
     <div className="playlist">
       <div className="playlist__header">
         <span className="playlist__title">
-          PLAYLIST — {tracks.length} track{tracks.length !== 1 ? 's' : ''}
+          {t('playlistTitle')} — {tracks.length} {t('tracks')}
         </span>
         <div className="playlist__actions">
-          <button onClick={onAddFiles}   title="Add files (Ctrl+O)">+FILE</button>
-          <button onClick={onAddFolder}  title="Add folder">+DIR</button>
+          <button onClick={onAddFiles} title="Add files (Ctrl+O)">{t('addFile')}</button>
+          <button onClick={onAddFolder} title="Add folder">{t('addDir')}</button>
         </div>
       </div>
 
@@ -55,10 +55,10 @@ export default function Playlist({
         {tracks.length === 0 ? (
           <div className="playlist__empty">
             <div>╔══════════════════╗</div>
-            <div>║  NO TRACKS YET   ║</div>
+            <div>║  {t('noTracks')}   ║</div>
             <div>╚══════════════════╝</div>
             <div style={{ marginTop: 12 }}>
-              Drop audio files here<br />or use [+FILE] / [+DIR]
+              {t('emptyHint')}
             </div>
           </div>
         ) : (

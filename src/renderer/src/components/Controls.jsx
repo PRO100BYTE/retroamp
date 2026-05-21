@@ -8,7 +8,7 @@ export default function Controls({
   playing, currentTime, duration, volume, muted,
   repeat, shuffle, hasTracks, trackCount, currentIdx,
   onTogglePlay, onNext, onPrev, onStop,
-  onSeek, onVolume, onMute, onRepeat, onShuffle
+  onSeek, onVolume, onMute, onRepeat, onShuffle, t
 }) {
   const seekRef = useRef(null)
 
@@ -106,14 +106,14 @@ export default function Controls({
         <span className="controls__status-text">
           {hasTracks
             ? `[${String(currentIdx + 1).padStart(2, '0')}/${String(trackCount).padStart(2, '0')}]  ` +
-              (playing ? ' ♪ PLAYING' : ' ■ STOPPED') +
-              `  ${repeat !== 'none' ? `RPT:${REPEAT_LABELS[repeat]} ` : ''}` +
+              (playing ? ` ${t('statusPlaying')}` : ` ${t('statusStopped')}`) +
+              `  ${repeat !== 'none' ? `${t('statusRepeat')}:${REPEAT_LABELS[repeat]} ` : ''}` +
               `${shuffle ? ' SHF' : ''}`
-            : 'Drop files or use [FILE] / [FOLDER] to load tracks. Space=play  ←→=seek  ↑↓=vol  M=mute'
+            : t('statusNoTracks')
           }
         </span>
         <span className="controls__shortcuts">
-          Space=play  Ctrl+←/→=prev/next  ↑↓=vol  M=mute
+          {t('shortcuts')}
         </span>
       </div>
 
