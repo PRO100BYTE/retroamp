@@ -93,6 +93,10 @@ export default function App() {
   }, [settings])
 
   useEffect(() => {
+    window.electronAPI.setCompactMode?.(!!settings.compactMode)
+  }, [settings.compactMode])
+
+  useEffect(() => {
     const close = () => setVizMenu((m) => ({ ...m, visible: false }))
     window.addEventListener('click', close)
     return () => window.removeEventListener('click', close)
@@ -189,10 +193,10 @@ export default function App() {
     if (!audio) return
     if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
 
-    const source = await window.electronAPI.readAudioSource(track.path)
-    if (!source?.base64) return
+    const fileUrl = await window.electronAPI.toFileUrl(track.path)
+    if (!fileUrl) return
 
-    audio.src = `data:${source.mime || 'application/octet-stream'};base64,${source.base64}`
+    audio.src = fileUrl
     audio.load()
     audio.play().catch(console.error)
     setCurrentIdx(idx)

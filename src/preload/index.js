@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFiles:   () => ipcRenderer.invoke('dialog:openFiles'),
   openFolder:  () => ipcRenderer.invoke('dialog:openFolder'),
   readTags:    (paths) => ipcRenderer.invoke('media:readTags', paths),
-  readAudioSource: (filePath) => ipcRenderer.invoke('media:readAudioSource', filePath),
+  toFileUrl: (filePath) => ipcRenderer.invoke('media:toFileUrl', filePath),
   importM3U:   () => ipcRenderer.invoke('playlist:importM3U'),
   exportM3U:   (payload) => ipcRenderer.invoke('playlist:exportM3U', payload),
 
@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimize: () => ipcRenderer.send('window:minimize'),
   maximize: () => ipcRenderer.send('window:maximize'),
   close:    () => ipcRenderer.send('window:close'),
+  setCompactMode: (compact) => ipcRenderer.invoke('window:setCompactMode', compact),
 
   // Window state events
   onMaximized: (cb) => {

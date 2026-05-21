@@ -1,9 +1,12 @@
 import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
 import { join, dirname, resolve, isAbsolute, basename, extname } from 'path'
 import { readdir, readFile, writeFile } from 'fs/promises'
+import { pathToFileURL } from 'url'
 import { parseFile } from 'music-metadata'
 
 const AUDIO_EXTS = new Set(['.mp3', '.flac', '.ogg', '.wav', '.aac', '.m4a', '.opus', '.wma', '.mp4'])
+const WINDOW_MIN_NORMAL = { width: 720, height: 500 }
+const WINDOW_MIN_COMPACT = { width: 330, height: 330 }
 
 const isDev = process.env.NODE_ENV === 'development'
 
@@ -19,8 +22,8 @@ function createWindow() {
     icon: appIcon.isEmpty() ? undefined : appIcon,
     width: 960,
     height: 620,
-    minWidth: 720,
-    minHeight: 500,
+    minWidth: WINDOW_MIN_NORMAL.width,
+    minHeight: WINDOW_MIN_NORMAL.height,
     frame: false,           // custom titlebar
     transparent: false,
     backgroundColor: '#030803',
@@ -264,15 +267,10 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   return out
 })
 
-ipcMain.handle('media:readAudioSource', async (_e, filePath) => {
+ipcMain.handle('media:toFileUrl', async (_e, filePath) => {
   if (!filePath || typeof filePath !== 'string') return null
   try {
-    const data = await readFile(filePath)
-    return {
-      path: filePath,
-      mime: guessAudioMime(filePath),
-      base64: Buffer.from(data).toString('base64'),
-    }
+    return pathToFileURL(filePath).href
   } catch {
     return null
   }
@@ -361,4 +359,21 @@ ipcMain.on('window:maximize', (e) => {
 })
 ipcMain.on('window:close', (e) => {
   BrowserWindow.fromWebContents(e.sender)?.close()
+})
+
+ipcMain.handle('window:setCompactMode', (_e, compactMode) => {
+  const win = mainWindow || BrowserWindow.getAllWindows()[0]
+  if (!win) return false
+
+  const min = compactMode ? WINDOW_MIN_COMPACT : WINDOW_MIN_NORMAL
+  win.setMinimumSize(min.width, min.height)
+
+  if (!compactMode) {
+    const [w, h] = win.getSize()
+    if (w < min.width || h < min.height) {
+      win.setSize(Math.max(w, min.width), Math.max(h, min.height))
+    }
+  }
+
+  return true
 })

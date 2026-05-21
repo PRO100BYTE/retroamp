@@ -299,6 +299,45 @@ body {
   padding: 4px 12px;
 }
 
+.app--compact .main-area {
+  flex-direction: column;
+}
+
+.app--compact .right-panel {
+  min-height: 0;
+}
+
+.app--compact .spectrum-wrap {
+  flex: 1;
+  min-height: 110px;
+}
+
+.app--compact .controls__row {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.app--compact .controls__spacer {
+  display: none;
+}
+
+.app--compact .controls__vol {
+  margin-left: auto;
+}
+
+.app--compact .controls__volbar {
+  width: 64px;
+}
+
+.app--compact .ctrl {
+  padding: 2px 7px;
+  min-width: 28px;
+}
+
+.app--compact .ctrl--play {
+  min-width: 36px;
+}
+
 /* ── Playlist ───────────────────────────────────────────────────── */
 .playlist {
   width: 300px;
