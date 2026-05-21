@@ -143,7 +143,9 @@ export default function App() {
     const ctx = new Ctor()
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 1024
-    analyser.smoothingTimeConstant = 0.8
+    analyser.smoothingTimeConstant = 0.56
+    analyser.minDecibels = -90
+    analyser.maxDecibels = -10
     const src = ctx.createMediaElementSource(audio)
     src.connect(analyser)
     analyser.connect(ctx.destination)
@@ -191,6 +193,23 @@ export default function App() {
       audioRef.current.muted = muted
     }
   }, [volume, muted])
+
+  useEffect(() => {
+    const track = tracks[currentIdx]
+    if (!track || track.cover || !settings.showCover) return undefined
+
+    let cancelled = false
+    window.electronAPI.readCover(track.path)
+      .then((cover) => {
+        if (cancelled || !cover) return
+        setTracks((prev) => prev.map((item) => item.id === track.id ? { ...item, cover } : item))
+      })
+      .catch(() => {})
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentIdx, tracks, settings.showCover])
 
   const playAt = useCallback(async (idx, list) => {
     const tl = list ?? tracksRef.current
@@ -270,6 +289,22 @@ export default function App() {
     } catch {
       metadata = []
     }
+
+    const needsPerFileFallback =
+      metadata.length !== filtered.length ||
+      metadata.every((item) => !item?.title && !item?.artist && !item?.album)
+
+    if (needsPerFileFallback) {
+      metadata = await Promise.all(filtered.map(async (filePath) => {
+        try {
+          const single = await window.electronAPI.readTags([filePath])
+          return Array.isArray(single) && single[0] ? single[0] : { path: filePath }
+        } catch {
+          return { path: filePath }
+        }
+      }))
+    }
+
     const metaMap = new Map(metadata.map((m) => [m.path, m]))
     const newTracks = filtered.map((p) => makeTrack(p, metaMap.get(p) || {}))
 

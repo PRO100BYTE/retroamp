@@ -245,13 +245,6 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
       const album = typeof common.album === 'string' && common.album.trim()
         ? common.album.trim()
         : fallbackAlbum
-      const commonPictures = Array.isArray(common.picture) ? common.picture : []
-      const nativePictures = extractNativePictures(native)
-      const embeddedPicture = pickBestPicture([...commonPictures, ...nativePictures])
-      let cover = pictureToDataUrl(embeddedPicture)
-      if (!cover) {
-        cover = await findExternalCover(filePath)
-      }
       return {
         path: filePath,
         title,
@@ -259,13 +252,29 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
         album,
         year: common.year || null,
         duration: Number.isFinite(format.duration) ? format.duration : null,
-        cover,
       }
     } catch {
       return { path: filePath }
     }
   }))
   return out
+})
+
+ipcMain.handle('media:readCover', async (_e, filePath) => {
+  if (!filePath || typeof filePath !== 'string') return null
+  try {
+    const meta = await parseFile(filePath, { duration: false, skipCovers: false })
+    const common = meta.common || {}
+    const native = meta.native || {}
+    const commonPictures = Array.isArray(common.picture) ? common.picture : []
+    const nativePictures = extractNativePictures(native)
+    const embeddedPicture = pickBestPicture([...commonPictures, ...nativePictures])
+    const embeddedCover = pictureToDataUrl(embeddedPicture)
+    if (embeddedCover) return embeddedCover
+    return await findExternalCover(filePath)
+  } catch {
+    return await findExternalCover(filePath)
+  }
 })
 
 ipcMain.handle('media:toFileUrl', async (_e, filePath) => {
