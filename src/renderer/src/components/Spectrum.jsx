@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react'
+import React, { useRef, useEffect } from 'react'
 
 // ─── Colour palette ───────────────────────────────────────────────────────────
 const C_BOT  = '#003311'
@@ -36,6 +36,18 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
       barsRef.current  = []
       peaksRef.current = []
       peakVRef.current = []
+      return { dpr, cssW, cssH }
+    }
+
+    const ensureCanvasSize = () => {
+      const dpr = window.devicePixelRatio || 1
+      const cssW = Math.max(1, Math.round(wrap.clientWidth))
+      const cssH = Math.max(1, Math.round(wrap.clientHeight))
+      const targetW = Math.max(1, Math.round(cssW * dpr))
+      const targetH = Math.max(1, Math.round(cssH * dpr))
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        resizeCanvas()
+      }
     }
 
     // Keep canvas pixel-perfect with its CSS size
@@ -48,6 +60,8 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
     })
     ro.observe(wrap)
     resizeCanvas()
+    const rafResize = requestAnimationFrame(() => resizeCanvas())
+    window.addEventListener('resize', ensureCanvasSize)
 
     const ctx = canvas.getContext('2d')
 
@@ -64,6 +78,7 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
 
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw)
+      ensureCanvasSize()
 
       const analyser = analyserRef.current
       const W = canvas.width
@@ -180,9 +195,11 @@ export default function Spectrum({ analyserRef, playing, intensity = 1, mode = '
 
     return () => {
       ro.disconnect()
+      cancelAnimationFrame(rafResize)
+      window.removeEventListener('resize', ensureCanvasSize)
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
     }
-  }, [analyserRef])
+  }, [analyserRef, intensity, mode])
 
   return (
     <div ref={wrapRef} className="spectrum-wrap" onContextMenu={onContextMenu}>
