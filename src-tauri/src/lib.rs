@@ -1,14 +1,16 @@
 use base64::Engine;
+use anyhow::Result;
 use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::probe::Probe;
 use lofty::tag::Accessor;
 use rfd::FileDialog;
 use serde::Serialize;
+use std::fs;
 use std::path::{Path, PathBuf};
 use url::Url;
 use walkdir::WalkDir;
 
-#[derive(Serialize)]
+#[derive(Serialize, serde::Deserialize)]
 struct TrackMeta {
   path: String,
   title: Option<String>,
@@ -108,6 +110,64 @@ fn media_to_file_url(path: String) -> Option<String> {
   Url::from_file_path(path).ok().map(|u| u.to_string())
 }
 
+fn resolve_m3u_line(base_dir: &Path, line: &str) -> Option<PathBuf> {
+  let trimmed = line.trim();
+  if trimmed.is_empty() || trimmed.starts_with('#') {
+    return None;
+  }
+
+  let candidate = PathBuf::from(trimmed);
+  if candidate.is_absolute() {
+    return Some(candidate);
+  }
+  Some(base_dir.join(candidate))
+}
+
+#[tauri::command]
+fn playlist_import_m3u() -> Vec<String> {
+  let Some(file) = FileDialog::new()
+    .add_filter("M3U", &["m3u", "m3u8"])
+    .pick_file()
+  else {
+    return vec![];
+  };
+
+  let base_dir = file.parent().unwrap_or_else(|| Path::new(""));
+  let body = match fs::read_to_string(&file) {
+    Ok(text) => text,
+    Err(_) => return vec![],
+  };
+
+  body
+    .lines()
+    .filter_map(|line| resolve_m3u_line(base_dir, line))
+    .filter(|path| is_audio_path(path))
+    .map(|path| path.to_string_lossy().to_string())
+    .collect()
+}
+
+#[tauri::command]
+fn playlist_export_m3u(tracks: Vec<TrackMeta>) -> bool {
+  let Some(file) = FileDialog::new()
+    .add_filter("M3U8", &["m3u8"])
+    .set_file_name("playlist.m3u8")
+    .save_file()
+  else {
+    return false;
+  };
+
+  let mut lines = vec!["#EXTM3U".to_string()];
+  for track in tracks {
+    let secs = track.duration.map(|v| v.round() as i64).unwrap_or(-1);
+    let artist = track.artist.unwrap_or_default();
+    let title = track.title.unwrap_or_else(|| Path::new(&track.path).file_stem().and_then(|s| s.to_str()).unwrap_or("Unknown").to_string());
+    lines.push(format!("#EXTINF:{},{}{}{}", secs, artist, if artist.is_empty() { "" } else { " - " }, title));
+    lines.push(track.path);
+  }
+
+  fs::write(file, lines.join("\r\n")).is_ok()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -126,7 +186,9 @@ pub fn run() {
       dialog_open_folder,
       media_read_tags,
       media_read_cover,
-      media_to_file_url
+      media_to_file_url,
+      playlist_import_m3u,
+      playlist_export_m3u
     ])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");

@@ -2,6 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const AUDIO_RE = /\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i
+const SETTINGS_KEY = 'retroamp:settings:v1'
+const DEFAULT_SETTINGS = {
+  compactMode: false,
+  showCover: true,
+  autoPlayOnAdd: true,
+  vizIntensity: 1,
+}
 let nextId = 1
 
 const tracks = ref([])
@@ -11,6 +18,10 @@ const currentTime = ref(0)
 const duration = ref(0)
 const volume = ref(0.8)
 const muted = ref(false)
+const settings = ref(loadSettings())
+const showSettings = ref(false)
+const dragOver = ref(false)
+const compact = computed(() => !!settings.value.compactMode)
 
 const canvasRef = ref(null)
 let rafId = null
@@ -20,6 +31,14 @@ let analyser = null
 let sourceNode = null
 
 const currentTrack = computed(() => tracks.value[currentIdx.value] ?? null)
+
+function loadSettings() {
+  try {
+    return { ...DEFAULT_SETTINGS, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')) }
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
 
 function fmtTime(sec) {
   if (!Number.isFinite(sec) || sec < 0) return '--:--'
@@ -62,7 +81,7 @@ function makeTrack(filePath, meta = {}) {
 }
 
 async function loadCoverForTrack(track) {
-  if (!track || track.cover) return
+  if (!track || track.cover || !settings.value.showCover) return
   try {
     const cover = await window.electronAPI.readCover(track.path)
     if (!cover) return
@@ -105,9 +124,26 @@ async function addPaths(paths) {
   const wasEmpty = tracks.value.length === 0
   tracks.value = [...tracks.value, ...appended]
 
-  if (wasEmpty && appended.length > 0) {
+  if (wasEmpty && appended.length > 0 && settings.value.autoPlayOnAdd) {
     await playAt(0)
   }
+}
+
+async function importM3U() {
+  const paths = await window.electronAPI.importM3U()
+  await addPaths(paths)
+}
+
+async function exportM3U() {
+  await window.electronAPI.exportM3U(tracks.value)
+}
+
+function openSettings() {
+  showSettings.value = true
+}
+
+function closeSettings() {
+  showSettings.value = false
 }
 
 async function openFiles() {
@@ -190,6 +226,20 @@ function removeTrack(idx) {
   } else if (idx < currentIdx.value) {
     currentIdx.value -= 1
   }
+}
+
+function onDragOver() {
+  dragOver.value = true
+}
+
+function onDragLeave() {
+  dragOver.value = false
+}
+
+async function onDrop(event) {
+  dragOver.value = false
+  const files = [...event.dataTransfer.files].map((file) => file.path).filter(Boolean)
+  await addPaths(files)
 }
 
 function drawSpectrum() {
@@ -319,6 +369,22 @@ watch(muted, (m) => {
   audio.muted = !!m
 })
 
+watch(
+  settings,
+  (value) => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(value))
+  },
+  { deep: true }
+)
+
+watch(
+  () => settings.value.compactMode,
+  async (value) => {
+    await window.electronAPI.setCompactMode?.(value)
+  },
+  { immediate: true }
+)
+
 watch(currentTrack, (track) => {
   if (track) loadCoverForTrack(track)
 })
@@ -330,12 +396,21 @@ const progressRatio = computed(() => {
 </script>
 
 <template>
-  <div class="app vue-player">
+  <div
+    class="app vue-player"
+    :class="{ 'app--compact': compact, 'app--dragover': dragOver }"
+    @dragover.prevent="onDragOver"
+    @dragleave.prevent="onDragLeave"
+    @drop.prevent="onDrop"
+  >
     <div class="titlebar">
       <span class="titlebar__logo">RETROAMP</span>
       <div class="titlebar__menu">
         <button @click="openFiles">[ФАЙЛЫ]</button>
         <button @click="openFolder">[ПАПКА]</button>
+        <button @click="importM3U">[M3U I]</button>
+        <button @click="exportM3U">[M3U E]</button>
+        <button @click="openSettings">[НАСТРОЙКИ]</button>
       </div>
       <span class="titlebar__track">{{ currentTrack ? `♪ ${currentTrack.title} — ${currentTrack.artist || 'Unknown artist'}` : 'RetroAmp Vue Player' }}</span>
       <div class="titlebar__wctrl">
@@ -346,7 +421,7 @@ const progressRatio = computed(() => {
     </div>
 
     <div class="main-area">
-      <div class="playlist">
+      <div class="playlist" v-if="!compact">
         <div class="playlist__header">
           <span class="playlist__title">ПЛЕЙЛИСТ — {{ tracks.length }}</span>
         </div>
@@ -367,11 +442,11 @@ const progressRatio = computed(() => {
       </div>
 
       <div class="right-panel">
-        <div class="spectrum-wrap">
+        <div class="spectrum-wrap" @contextmenu.prevent="() => {}">
           <canvas ref="canvasRef" class="spectrum-canvas" />
         </div>
 
-        <div class="track-meta">
+        <div class="track-meta" v-if="settings.showCover || currentTrack">
           <div class="track-meta__cover-wrap">
             <img v-if="currentTrack?.cover" :src="currentTrack.cover" alt="Album cover" class="track-meta__cover" />
             <div v-else class="track-meta__cover track-meta__cover--fallback">NO COVER</div>
@@ -426,6 +501,34 @@ const progressRatio = computed(() => {
             @input="volume = parseFloat($event.target.value)"
           />
           <span class="controls__volpct">{{ Math.round(volume * 100) }}%</span>
+        </div>
+      </div>
+    </div>
+
+    <div v-if="showSettings" class="settings" @click.self="closeSettings">
+      <div class="settings__panel">
+        <div class="settings__head">
+          <span>НАСТРОЙКИ</span>
+          <button @click="closeSettings">✕</button>
+        </div>
+        <label class="settings__row settings__row--check">
+          <input type="checkbox" v-model="settings.compactMode" />
+          <span>Компактный режим</span>
+        </label>
+        <label class="settings__row settings__row--check">
+          <input type="checkbox" v-model="settings.showCover" />
+          <span>Показывать обложку</span>
+        </label>
+        <label class="settings__row settings__row--check">
+          <input type="checkbox" v-model="settings.autoPlayOnAdd" />
+          <span>Автозапуск при добавлении</span>
+        </label>
+        <label class="settings__row">
+          <span>Интенсивность визуализации</span>
+          <input type="range" min="0.6" max="1.6" step="0.05" v-model.number="settings.vizIntensity" />
+        </label>
+        <div class="settings__footer">
+          <button @click="closeSettings">ОК</button>
         </div>
       </div>
     </div>
