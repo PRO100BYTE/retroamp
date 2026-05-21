@@ -91,6 +91,56 @@ ipcMain.handle('dialog:openFolder', async () => {
 ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
   const list = Array.isArray(filePaths) ? filePaths : []
 
+  const normalizePictureMime = (format) => {
+    const value = String(format || '').toLowerCase().trim()
+    if (!value) return null
+    if (value === 'jpg' || value === 'image/jpg' || value === 'jpeg') return 'image/jpeg'
+    if (value === 'png' || value === 'image/png') return 'image/png'
+    if (value === 'gif' || value === 'image/gif') return 'image/gif'
+    if (value === 'webp' || value === 'image/webp') return 'image/webp'
+    if (value.startsWith('image/')) return value
+    return null
+  }
+
+  const pictureScore = (picture) => {
+    const hint = `${picture?.type || ''} ${picture?.name || ''} ${picture?.description || ''}`.toLowerCase()
+    let score = 0
+    if (hint.includes('front')) score += 100
+    if (hint.includes('cover')) score += 80
+    if (hint.includes('folder')) score += 60
+    if (picture?.data?.length) score += Math.min(50, Math.floor(picture.data.length / 16384))
+    return score
+  }
+
+  const pickBestPicture = (pictures) => {
+    const valid = (pictures || []).filter((picture) => picture?.data && picture.data.length > 0)
+    if (!valid.length) return null
+    return [...valid].sort((a, b) => pictureScore(b) - pictureScore(a))[0]
+  }
+
+  const extractNativePictures = (nativeTags) => {
+    const tags = []
+    for (const values of Object.values(nativeTags || {})) {
+      for (const entry of values || []) {
+        const value = entry?.value
+        if (Array.isArray(value)) {
+          for (const sub of value) {
+            if (sub?.data && sub.data.length > 0) tags.push(sub)
+          }
+        } else if (value?.data && value.data.length > 0) {
+          tags.push(value)
+        }
+      }
+    }
+    return tags
+  }
+
+  const pictureToDataUrl = (picture) => {
+    if (!picture?.data || picture.data.length === 0) return null
+    const mime = normalizePictureMime(picture.format) || 'image/jpeg'
+    return `data:${mime};base64,${Buffer.from(picture.data).toString('base64')}`
+  }
+
   const guessCoverMime = (fileName) => {
     const ext = extname(fileName).toLowerCase()
     if (ext === '.png') return 'image/png'
@@ -132,13 +182,12 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
     try {
       const meta = await parseFile(filePath, { duration: true, skipCovers: false })
       const common = meta.common || {}
+      const native = meta.native || {}
       const format = meta.format || {}
-      const pic = Array.isArray(common.picture) ? common.picture[0] : null
-      let cover = null
-      if (pic?.data) {
-        const mime = pic.format || 'image/jpeg'
-        cover = `data:${mime};base64,${Buffer.from(pic.data).toString('base64')}`
-      }
+      const commonPictures = Array.isArray(common.picture) ? common.picture : []
+      const nativePictures = extractNativePictures(native)
+      const embeddedPicture = pickBestPicture([...commonPictures, ...nativePictures])
+      let cover = pictureToDataUrl(embeddedPicture)
       if (!cover) {
         cover = await findExternalCover(filePath)
       }
