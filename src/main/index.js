@@ -1,6 +1,6 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
-import { readdir } from 'fs/promises'
+import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
+import { join, dirname, resolve, isAbsolute } from 'path'
+import { readdir, readFile, writeFile } from 'fs/promises'
 import { parseFile } from 'music-metadata'
 
 const AUDIO_EXTS = new Set(['.mp3', '.flac', '.ogg', '.wav', '.aac', '.m4a', '.opus', '.wma', '.mp4'])
@@ -11,7 +11,12 @@ const isDev = process.env.NODE_ENV === 'development'
 let mainWindow = null
 
 function createWindow() {
+  const iconPath = join(app.getAppPath(), 'resources', 'icon.png')
+  const appIcon = nativeImage.createFromPath(iconPath)
+
   mainWindow = new BrowserWindow({
+    title: 'RetroAmp',
+    icon: appIcon.isEmpty() ? undefined : appIcon,
     width: 960,
     height: 620,
     minWidth: 720,
@@ -44,6 +49,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  app.setName('RetroAmp')
   createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -109,6 +115,53 @@ ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
     }
   }))
   return out
+})
+
+ipcMain.handle('playlist:importM3U', async () => {
+  const win = BrowserWindow.getAllWindows()[0]
+  const { canceled, filePaths } = await dialog.showOpenDialog(win, {
+    title: 'Import M3U Playlist',
+    properties: ['openFile'],
+    filters: [{ name: 'M3U Playlist', extensions: ['m3u', 'm3u8'] }],
+  })
+  if (canceled || filePaths.length === 0) return []
+
+  const m3uPath = filePaths[0]
+  const baseDir = dirname(m3uPath)
+  const body = await readFile(m3uPath, 'utf8')
+  const lines = body.split(/\r?\n/)
+  const out = []
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (!line || line.startsWith('#')) continue
+    const path = isAbsolute(line) ? line : resolve(baseDir, line)
+    out.push(path)
+  }
+  return out
+})
+
+ipcMain.handle('playlist:exportM3U', async (_e, payload = {}) => {
+  const win = BrowserWindow.getAllWindows()[0]
+  const tracks = Array.isArray(payload.tracks) ? payload.tracks : []
+  if (tracks.length === 0) return false
+
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    title: 'Export M3U Playlist',
+    defaultPath: 'playlist.m3u8',
+    filters: [{ name: 'M3U Playlist', extensions: ['m3u8'] }],
+  })
+  if (canceled || !filePath) return false
+
+  const lines = ['#EXTM3U']
+  for (const track of tracks) {
+    const d = Number.isFinite(track.duration) ? Math.round(track.duration) : -1
+    const artist = track.artist || ''
+    const title = track.title || track.name || 'Unknown'
+    lines.push(`#EXTINF:${d},${artist}${artist ? ' - ' : ''}${title}`)
+    lines.push(track.path)
+  }
+  await writeFile(filePath, lines.join('\r\n'), 'utf8')
+  return true
 })
 
 async function collectAudioFiles(dir) {

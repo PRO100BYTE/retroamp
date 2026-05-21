@@ -239,14 +239,16 @@ export default function App() {
   }, [])
 
   const addPaths = useCallback(async (paths) => {
+    const filtered = (paths || []).filter((p) => AUDIO_RE.test(p))
+    if (!filtered.length) return
     let metadata = []
     try {
-      metadata = await window.electronAPI.readTags(paths)
+      metadata = await window.electronAPI.readTags(filtered)
     } catch {
       metadata = []
     }
     const metaMap = new Map(metadata.map((m) => [m.path, m]))
-    const newTracks = paths.map((p) => makeTrack(p, metaMap.get(p) || {}))
+    const newTracks = filtered.map((p) => makeTrack(p, metaMap.get(p) || {}))
 
     setTracks((prev) => {
       const merged = [...prev, ...newTracks]
@@ -309,6 +311,16 @@ export default function App() {
     if (paths.length) addPaths(paths)
   }, [addPaths])
 
+  const handleImportM3U = useCallback(async () => {
+    const paths = await window.electronAPI.importM3U()
+    if (paths.length) addPaths(paths)
+  }, [addPaths])
+
+  const handleExportM3U = useCallback(async () => {
+    if (!tracksRef.current.length) return
+    await window.electronAPI.exportM3U({ tracks: tracksRef.current })
+  }, [])
+
   const onDragOver = (e) => { e.preventDefault(); setDragOver(true) }
   const onDragLeave = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false) }
   const onDrop = useCallback((e) => {
@@ -369,6 +381,8 @@ export default function App() {
         t={t}
         onOpenFiles={handleOpenFiles}
         onOpenFolder={handleOpenFolder}
+        onImportM3U={handleImportM3U}
+        onExportM3U={handleExportM3U}
         onOpenSettings={() => setShowSettings(true)}
         onOpenAbout={() => setShowAbout(true)}
         onClear={clearPlaylist}

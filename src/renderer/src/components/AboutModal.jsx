@@ -1,6 +1,7 @@
 import React from 'react'
 
 export default function AboutModal({ t, onClose }) {
+  const year = new Date().getFullYear()
   return (
     <div className="settings" onClick={onClose}>
       <div className="settings__panel about" onClick={(e) => e.stopPropagation()}>
@@ -25,7 +26,7 @@ export default function AboutModal({ t, onClose }) {
         <div className="about__section">
           <div className="about__title">{t('aboutAuthors')}</div>
           <div>{t('aboutAuthorMain')}</div>
-          <div>{t('aboutAuthorAi')}</div>
+          <div>{t('aboutCopyright')} {year} PRO100BYTE Team</div>
         </div>
 
         <div className="settings__footer">

@@ -26,10 +26,10 @@
   "build": {
     "appId": "com.pro100byte.retroamp",
     "productName": "RetroAmp",
-    "copyright": "Copyright © 2025 PRO100BYTE",
+    "copyright": "Copyright © 2026 PRO100BYTE Team",
     "win": {
       "target": [{ "target": "nsis", "arch": ["x64"] }],
-      "icon": "resources/icon.ico"
+      "icon": "resources/icon.png"
     },
     "nsis": {
       "oneClick": false,

@@ -1,6 +1,17 @@
 import React, { useEffect, useState } from 'react'
+import appIcon from '../assets/icon.png'
 
-export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, onOpenSettings, onOpenAbout, t }) {
+export default function TitleBar({
+  track,
+  onOpenFiles,
+  onOpenFolder,
+  onImportM3U,
+  onExportM3U,
+  onClear,
+  onOpenSettings,
+  onOpenAbout,
+  t,
+}) {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
@@ -12,11 +23,16 @@ export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, on
 
   return (
     <div className="titlebar">
-      <span className="titlebar__logo">▓▓ RETROAMP ▓▓</span>
+      <span className="titlebar__logo">
+        <img src={appIcon} alt="RetroAmp" className="titlebar__logo-icon" />
+        <span className="titlebar__logo-text">RETROAMP</span>
+      </span>
 
       <div className="titlebar__menu">
         <button onClick={onOpenFiles}>{t('menuFile')}</button>
         <button onClick={onOpenFolder}>{t('menuFolder')}</button>
+        <button onClick={onImportM3U}>{t('menuImportM3U')}</button>
+        <button onClick={onExportM3U}>{t('menuExportM3U')}</button>
         <button onClick={onOpenSettings}>{t('menuSettings')}</button>
         <button onClick={onOpenAbout}>{t('menuAbout')}</button>
         <button onClick={onClear}>{t('menuClear')}</button>

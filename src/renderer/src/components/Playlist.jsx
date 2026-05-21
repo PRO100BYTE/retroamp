@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { fmtTime } from '../App'
 
 export default function Playlist({
@@ -8,6 +8,8 @@ export default function Playlist({
 }) {
   const [dragSrc, setDragSrc] = useState(-1)
   const [dragTarget, setDragTarget] = useState(-1)
+  const [menu, setMenu] = useState({ visible: false, x: 0, y: 0, idx: -1 })
+  const menuRef = useRef(null)
 
   // ── Drag & drop reordering ────────────────────────────────────────────────
   const onDragStart = (e, idx) => {
@@ -35,8 +37,28 @@ export default function Playlist({
   // ── Context menu (right click) ────────────────────────────────────────────
   const onContextMenu = (e, idx) => {
     e.preventDefault()
-    // Simple inline: just remove for now
-    onRemove(idx)
+    setMenu({ visible: true, x: e.clientX, y: e.clientY, idx })
+  }
+
+  useEffect(() => {
+    const onDocClick = () => setMenu((m) => (m.visible ? { ...m, visible: false } : m))
+    const onEsc = (e) => { if (e.key === 'Escape') setMenu((m) => ({ ...m, visible: false })) }
+    window.addEventListener('click', onDocClick)
+    window.addEventListener('keydown', onEsc)
+    return () => {
+      window.removeEventListener('click', onDocClick)
+      window.removeEventListener('keydown', onEsc)
+    }
+  }, [])
+
+  const runMenuAction = (action) => {
+    const idx = menu.idx
+    if (idx < 0 || idx >= tracks.length) return setMenu((m) => ({ ...m, visible: false }))
+    if (action === 'play') onSelect(idx)
+    if (action === 'remove') onRemove(idx)
+    if (action === 'up' && idx > 0) onReorder(idx, idx - 1)
+    if (action === 'down' && idx < tracks.length - 1) onReorder(idx, idx + 1)
+    setMenu((m) => ({ ...m, visible: false }))
   }
 
   return (
@@ -109,6 +131,21 @@ export default function Playlist({
           })
         )}
       </div>
+
+      {menu.visible && (
+        <div
+          ref={menuRef}
+          className="playlist__ctx"
+          style={{ left: `${menu.x}px`, top: `${menu.y}px` }}
+          onClick={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <button onClick={() => runMenuAction('play')}>{t('ctxPlay')}</button>
+          <button onClick={() => runMenuAction('remove')}>{t('ctxRemove')}</button>
+          <button onClick={() => runMenuAction('up')}>{t('ctxMoveUp')}</button>
+          <button onClick={() => runMenuAction('down')}>{t('ctxMoveDown')}</button>
+        </div>
+      )}
     </div>
   )
 }

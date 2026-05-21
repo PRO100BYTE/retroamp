@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFiles:   () => ipcRenderer.invoke('dialog:openFiles'),
   openFolder:  () => ipcRenderer.invoke('dialog:openFolder'),
   readTags:    (paths) => ipcRenderer.invoke('media:readTags', paths),
+  importM3U:   () => ipcRenderer.invoke('playlist:importM3U'),
+  exportM3U:   (payload) => ipcRenderer.invoke('playlist:exportM3U', payload),
 
   // Window controls
   minimize: () => ipcRenderer.send('window:minimize'),
