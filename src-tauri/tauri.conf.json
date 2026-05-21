@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm run dev:web",
-    "beforeBuildCommand": "npm run build:web"
+    "beforeDevCommand": "node scripts/vite-runner.cjs dev",
+    "beforeBuildCommand": "node scripts/vite-runner.cjs build"
   },
   "app": {
     "windows": [

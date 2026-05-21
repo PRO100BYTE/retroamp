@@ -6,13 +6,13 @@
   "author": "PRO100BYTE",
   "license": "MIT",
   "scripts": {
-    "dev": "tauri dev",
+    "dev": "node scripts/tauri-runner.cjs dev",
     "dev:web": "vite --config vite.renderer.config.mjs",
-    "build": "tauri build",
+    "build": "node scripts/tauri-runner.cjs build",
     "build:web": "vite build --config vite.renderer.config.mjs",
     "preview": "vite preview --config vite.renderer.config.mjs",
-    "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build",
+    "tauri:dev": "node scripts/tauri-runner.cjs dev",
+    "tauri:build": "node scripts/tauri-runner.cjs build",
     "ci": "npm run build:web"
   },
   "dependencies": {
