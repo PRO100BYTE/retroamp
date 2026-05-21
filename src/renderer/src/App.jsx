@@ -1,26 +1,51 @@
-import React, {
-  useState, useRef, useEffect, useCallback, useReducer
-} from 'react'
-import TitleBar   from './components/TitleBar'
-import Playlist   from './components/Playlist'
-import Spectrum   from './components/Spectrum'
-import Controls   from './components/Controls'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import TitleBar from './components/TitleBar'
+import Playlist from './components/Playlist'
+import Spectrum from './components/Spectrum'
+import Controls from './components/Controls'
+import SettingsModal from './components/SettingsModal'
 
-// ── Track factory ─────────────────────────────────────────────────────────────
 let _id = 0
-function makeTrack(filePath) {
-  const sep   = filePath.includes('\\') ? '\\' : '/'
-  const name  = filePath.split(sep).pop()
-  const title = name.replace(/\.[^.]+$/, '')
-                    .replace(/^\d+[\s._-]+/, '')   // strip leading track number
-                    .replace(/[_]/g, ' ')
-  return { id: ++_id, path: filePath, name, title, duration: 0 }
+
+const REPEAT = { NONE: 'none', ALL: 'all', ONE: 'one' }
+const AUDIO_RE = /\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i
+const SETTINGS_KEY = 'retroamp:settings:v1'
+const DEFAULT_SETTINGS = {
+  theme: 'matrix',
+  showCover: true,
+  autoPlayOnAdd: true,
+  vizIntensity: 1,
 }
 
-// ── Repeat modes ──────────────────────────────────────────────────────────────
-const REPEAT = { NONE: 'none', ALL: 'all', ONE: 'one' }
+function makeTrack(filePath, meta = {}) {
+  const sep = filePath.includes('\\') ? '\\' : '/'
+  const name = filePath.split(sep).pop() || filePath
+  const title = meta.title || name
+    .replace(/\.[^.]+$/, '')
+    .replace(/^\d+[\s._-]+/, '')
+    .replace(/[_]/g, ' ')
+  return {
+    id: ++_id,
+    path: filePath,
+    name,
+    title,
+    artist: meta.artist || '',
+    album: meta.album || '',
+    year: meta.year || '',
+    cover: meta.cover || null,
+    duration: Number.isFinite(meta.duration) ? meta.duration : 0,
+  }
+}
 
-// ── FORMAT helper ─────────────────────────────────────────────────────────────
+function loadSettings() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')
+    return { ...DEFAULT_SETTINGS, ...parsed }
+  } catch {
+    return { ...DEFAULT_SETTINGS }
+  }
+}
+
 export function fmtTime(sec) {
   if (!isFinite(sec) || sec < 0) return '--:--'
   const m = Math.floor(sec / 60)
@@ -28,119 +53,43 @@ export function fmtTime(sec) {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// ── AUDIO_EXTS regex ──────────────────────────────────────────────────────────
-const AUDIO_RE = /\.(mp3|flac|ogg|wav|aac|m4a|opus|wma)$/i
-
-// ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [tracks,     setTracks]     = useState([])
+  const [tracks, setTracks] = useState([])
   const [currentIdx, setCurrentIdx] = useState(-1)
-  const [playing,    setPlaying]    = useState(false)
-  const [currentTime,setCurrentTime]= useState(0)
-  const [duration,   setDuration]   = useState(0)
-  const [volume,     setVolume]     = useState(0.8)
-  const [muted,      setMuted]      = useState(false)
-  const [repeat,     setRepeat]     = useState(REPEAT.NONE)
-  const [shuffle,    setShuffle]    = useState(false)
-  const [dragOver,   setDragOver]   = useState(false)
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(0.8)
+  const [muted, setMuted] = useState(false)
+  const [repeat, setRepeat] = useState(REPEAT.NONE)
+  const [shuffle, setShuffle] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settings, setSettings] = useState(loadSettings)
 
-  // Mutable refs for callbacks not to go stale
-  const tracksRef     = useRef(tracks)
+  const tracksRef = useRef(tracks)
   const currentIdxRef = useRef(currentIdx)
-  const repeatRef     = useRef(repeat)
-  const shuffleRef    = useRef(shuffle)
-  useEffect(() => { tracksRef.current     = tracks     }, [tracks])
+  const repeatRef = useRef(repeat)
+  const shuffleRef = useRef(shuffle)
+  useEffect(() => { tracksRef.current = tracks }, [tracks])
   useEffect(() => { currentIdxRef.current = currentIdx }, [currentIdx])
-  useEffect(() => { repeatRef.current     = repeat     }, [repeat])
-  useEffect(() => { shuffleRef.current    = shuffle    }, [shuffle])
+  useEffect(() => { repeatRef.current = repeat }, [repeat])
+  useEffect(() => { shuffleRef.current = shuffle }, [shuffle])
 
-  // Audio refs
-  const audioRef    = useRef(null)
-  const ctxRef      = useRef(null)
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
+  }, [settings])
+
+  const audioRef = useRef(null)
+  const ctxRef = useRef(null)
   const analyserRef = useRef(null)
 
-  // ── Init audio engine ───────────────────────────────────────────────────────
-  useEffect(() => {
-    const audio = new Audio()
-    audioRef.current = audio
-    audio.volume = volume
-
-    const ctx      = new AudioContext()
-    const analyser = ctx.createAnalyser()
-    analyser.fftSize              = 1024
-    analyser.smoothingTimeConstant = 0.8
-    const src = ctx.createMediaElementSource(audio)
-    src.connect(analyser)
-    analyser.connect(ctx.destination)
-    ctxRef.current      = ctx
-    analyserRef.current = analyser
-
-    const onTime     = () => setCurrentTime(audio.currentTime)
-    const onMeta     = () => setDuration(audio.duration)
-    const onPlay     = () => setPlaying(true)
-    const onPause    = () => setPlaying(false)
-    const onEnded    = () => handleEnded()
-
-    audio.addEventListener('timeupdate',     onTime)
-    audio.addEventListener('loadedmetadata', onMeta)
-    audio.addEventListener('play',           onPlay)
-    audio.addEventListener('pause',          onPause)
-    audio.addEventListener('ended',          onEnded)
-
-    // Update track durations when metadata loads
-    audio.addEventListener('loadedmetadata', () => {
-      const idx = currentIdxRef.current
-      if (idx < 0) return
-      setTracks(prev => {
-        const copy = [...prev]
-        if (copy[idx]) copy[idx] = { ...copy[idx], duration: audio.duration }
-        return copy
-      })
-    })
-
-    return () => {
-      audio.removeEventListener('timeupdate',     onTime)
-      audio.removeEventListener('loadedmetadata', onMeta)
-      audio.removeEventListener('play',           onPlay)
-      audio.removeEventListener('pause',          onPause)
-      audio.removeEventListener('ended',          onEnded)
-      audio.pause()
-      ctx.close()
-    }
-  }, []) // eslint-disable-line
-
-  // Sync volume/mute
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume
-      audioRef.current.muted  = muted
-    }
-  }, [volume, muted])
-
-  // ── Playback helpers ─────────────────────────────────────────────────────────
-  const playAt = useCallback((idx, list) => {
-    const tl    = list ?? tracksRef.current
-    const track = tl[idx]
-    if (!track) return
-    const audio = audioRef.current
-    if (!audio) return
-    if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
-    // Convert Windows backslashes, encode spaces/special chars
-    const url = 'file:///' + track.path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')
-    audio.src = url
-    audio.load()
-    audio.play().catch(console.error)
-    setCurrentIdx(idx)
-    setCurrentTime(0)
-    setDuration(0)
-  }, [])
-
   const handleEnded = useCallback(() => {
-    const tl  = tracksRef.current
-    const ci  = currentIdxRef.current
+    const tl = tracksRef.current
+    const ci = currentIdxRef.current
     const rep = repeatRef.current
-    const sh  = shuffleRef.current
-    if (rep === REPEAT.ONE) {
+    const sh = shuffleRef.current
+    if (rep === REPEAT.ONE && audioRef.current) {
       audioRef.current.currentTime = 0
       audioRef.current.play().catch(() => {})
       return
@@ -155,8 +104,79 @@ export default function App() {
         else { setPlaying(false); return }
       }
     }
-    playAt(next)
-  }, [playAt])
+    if (next >= 0 && tl[next]) playAt(next)
+  }, [])
+
+  useEffect(() => {
+    const audio = new Audio()
+    audioRef.current = audio
+    audio.volume = volume
+
+    const ctx = new AudioContext()
+    const analyser = ctx.createAnalyser()
+    analyser.fftSize = 1024
+    analyser.smoothingTimeConstant = 0.8
+    const src = ctx.createMediaElementSource(audio)
+    src.connect(analyser)
+    analyser.connect(ctx.destination)
+    ctxRef.current = ctx
+    analyserRef.current = analyser
+
+    const onTime = () => setCurrentTime(audio.currentTime)
+    const onMeta = () => setDuration(audio.duration)
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onEnded = () => handleEnded()
+
+    audio.addEventListener('timeupdate', onTime)
+    audio.addEventListener('loadedmetadata', onMeta)
+    audio.addEventListener('play', onPlay)
+    audio.addEventListener('pause', onPause)
+    audio.addEventListener('ended', onEnded)
+
+    audio.addEventListener('loadedmetadata', () => {
+      const idx = currentIdxRef.current
+      if (idx < 0) return
+      setTracks((prev) => {
+        const copy = [...prev]
+        if (copy[idx]) copy[idx] = { ...copy[idx], duration: audio.duration }
+        return copy
+      })
+    })
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTime)
+      audio.removeEventListener('loadedmetadata', onMeta)
+      audio.removeEventListener('play', onPlay)
+      audio.removeEventListener('pause', onPause)
+      audio.removeEventListener('ended', onEnded)
+      audio.pause()
+      ctx.close()
+    }
+  }, [handleEnded])
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume
+      audioRef.current.muted = muted
+    }
+  }, [volume, muted])
+
+  const playAt = useCallback((idx, list) => {
+    const tl = list ?? tracksRef.current
+    const track = tl[idx]
+    if (!track) return
+    const audio = audioRef.current
+    if (!audio) return
+    if (ctxRef.current?.state === 'suspended') ctxRef.current.resume()
+    const url = `file:///${track.path.replace(/\\/g, '/').split('/').map(encodeURIComponent).join('/')}`
+    audio.src = url
+    audio.load()
+    audio.play().catch(console.error)
+    setCurrentIdx(idx)
+    setCurrentTime(0)
+    setDuration(0)
+  }, [])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -182,10 +202,11 @@ export default function App() {
 
   const playPrev = useCallback(() => {
     const audio = audioRef.current
-    const tl    = tracksRef.current
+    const tl = tracksRef.current
     if (tl.length === 0) return
     if (audio && audio.currentTime > 3) {
-      audio.currentTime = 0; return
+      audio.currentTime = 0
+      return
     }
     const prev = shuffleRef.current
       ? Math.floor(Math.random() * tl.length)
@@ -207,18 +228,24 @@ export default function App() {
     }
   }, [])
 
-  // ── Track management ─────────────────────────────────────────────────────────
-  const addPaths = useCallback((paths) => {
-    const newTracks = paths.map(makeTrack)
-    setTracks(prev => {
+  const addPaths = useCallback(async (paths) => {
+    let metadata = []
+    try {
+      metadata = await window.electronAPI.readTags(paths)
+    } catch {
+      metadata = []
+    }
+    const metaMap = new Map(metadata.map((m) => [m.path, m]))
+    const newTracks = paths.map((p) => makeTrack(p, metaMap.get(p) || {}))
+
+    setTracks((prev) => {
       const merged = [...prev, ...newTracks]
-      if (prev.length === 0 && newTracks.length > 0) {
-        // Auto-play first track after state updates
+      if (prev.length === 0 && newTracks.length > 0 && settings.autoPlayOnAdd) {
         setTimeout(() => playAt(0, merged), 50)
       }
       return merged
     })
-  }, [playAt])
+  }, [playAt, settings.autoPlayOnAdd])
 
   const clearPlaylist = useCallback(() => {
     audioRef.current?.pause()
@@ -230,9 +257,9 @@ export default function App() {
   }, [])
 
   const removeTrack = useCallback((idx) => {
-    setTracks(prev => {
+    setTracks((prev) => {
       const arr = prev.filter((_, i) => i !== idx)
-      setCurrentIdx(ci => {
+      setCurrentIdx((ci) => {
         if (ci === idx) {
           audioRef.current?.pause()
           if (arr.length === 0) return -1
@@ -248,11 +275,11 @@ export default function App() {
 
   const reorderTracks = useCallback((fromIdx, toIdx) => {
     if (fromIdx === toIdx) return
-    setTracks(prev => {
+    setTracks((prev) => {
       const arr = [...prev]
       const [moved] = arr.splice(fromIdx, 1)
       arr.splice(toIdx, 0, moved)
-      setCurrentIdx(ci => {
+      setCurrentIdx((ci) => {
         if (ci === fromIdx) return toIdx
         if (fromIdx < ci && ci <= toIdx) return ci - 1
         if (toIdx <= ci && ci < fromIdx) return ci + 1
@@ -262,7 +289,6 @@ export default function App() {
     })
   }, [])
 
-  // ── File open handlers ───────────────────────────────────────────────────────
   const handleOpenFiles = useCallback(async () => {
     const paths = await window.electronAPI.openFiles()
     if (paths.length) addPaths(paths)
@@ -273,10 +299,9 @@ export default function App() {
     if (paths.length) addPaths(paths)
   }, [addPaths])
 
-  // ── Drag & drop ───────────────────────────────────────────────────────────────
-  const onDragOver  = (e) => { e.preventDefault(); setDragOver(true)  }
+  const onDragOver = (e) => { e.preventDefault(); setDragOver(true) }
   const onDragLeave = (e) => { if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(false) }
-  const onDrop      = useCallback((e) => {
+  const onDrop = useCallback((e) => {
     e.preventDefault()
     setDragOver(false)
     const paths = []
@@ -286,16 +311,12 @@ export default function App() {
     if (paths.length) addPaths(paths)
   }, [addPaths])
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
     const onKey = (e) => {
-      // Don't intercept when typing in an input element
-      if (e.target.tagName === 'INPUT') return
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return
       switch (e.code) {
         case 'Space':
-          e.preventDefault()
-          togglePlay()
-          break
+          e.preventDefault(); togglePlay(); break
         case 'ArrowRight':
           if (e.ctrlKey) { e.preventDefault(); playNext() }
           else if (audioRef.current) audioRef.current.currentTime = Math.min(duration, currentTime + 5)
@@ -305,32 +326,30 @@ export default function App() {
           else if (audioRef.current) audioRef.current.currentTime = Math.max(0, currentTime - 5)
           break
         case 'ArrowUp':
-          e.preventDefault()
-          setVolume(v => Math.min(1, parseFloat((v + 0.05).toFixed(2))))
-          break
+          e.preventDefault(); setVolume((v) => Math.min(1, parseFloat((v + 0.05).toFixed(2)))); break
         case 'ArrowDown':
-          e.preventDefault()
-          setVolume(v => Math.max(0, parseFloat((v - 0.05).toFixed(2))))
-          break
+          e.preventDefault(); setVolume((v) => Math.max(0, parseFloat((v - 0.05).toFixed(2)))); break
         case 'KeyM':
-          setMuted(m => !m)
-          break
+          setMuted((m) => !m); break
         case 'KeyS':
           if (e.ctrlKey) { e.preventDefault(); stop() }
           break
-        default: break
+        case 'Comma':
+          if (e.ctrlKey) { e.preventDefault(); setShowSettings(true) }
+          break
+        default:
+          break
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [togglePlay, playNext, playPrev, stop, currentTime, duration])
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   const currentTrack = tracks[currentIdx] ?? null
 
   return (
     <div
-      className={`app${dragOver ? ' app--dragover' : ''}`}
+      className={`app theme-${settings.theme}${dragOver ? ' app--dragover' : ''}`}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
@@ -339,6 +358,7 @@ export default function App() {
         track={currentTrack}
         onOpenFiles={handleOpenFiles}
         onOpenFolder={handleOpenFolder}
+        onOpenSettings={() => setShowSettings(true)}
         onClear={clearPlaylist}
       />
 
@@ -355,12 +375,30 @@ export default function App() {
         />
 
         <div className="right-panel">
-          <Spectrum analyserRef={analyserRef} playing={playing} />
-          <div className="track-info">
-            <span className="track-info__label">NOW PLAYING</span>
-            <span className="track-info__title">
-              {currentTrack ? currentTrack.title : '─ no track loaded ─'}
-            </span>
+          <Spectrum analyserRef={analyserRef} playing={playing} intensity={settings.vizIntensity} />
+
+          <div className="track-meta">
+            {settings.showCover && (
+              <div className="track-meta__cover-wrap">
+                {currentTrack?.cover ? (
+                  <img src={currentTrack.cover} alt="Album cover" className="track-meta__cover" />
+                ) : (
+                  <div className="track-meta__cover track-meta__cover--fallback">NO COVER</div>
+                )}
+              </div>
+            )}
+
+            <div className="track-info">
+              <span className="track-info__label">NOW PLAYING</span>
+              <span className="track-info__title">
+                {currentTrack ? currentTrack.title : '─ no track loaded ─'}
+              </span>
+              <span className="track-info__sub">
+                {currentTrack
+                  ? `${currentTrack.artist || 'Unknown artist'}${currentTrack.album ? ` • ${currentTrack.album}` : ''}${currentTrack.year ? ` (${currentTrack.year})` : ''}`
+                  : 'Drop tracks or open a folder to start'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -382,20 +420,23 @@ export default function App() {
         onStop={stop}
         onSeek={seek}
         onVolume={setVolume}
-        onMute={() => setMuted(m => !m)}
-        onRepeat={() => setRepeat(r =>
-          r === REPEAT.NONE ? REPEAT.ALL :
-          r === REPEAT.ALL  ? REPEAT.ONE : REPEAT.NONE
-        )}
-        onShuffle={() => setShuffle(s => !s)}
+        onMute={() => setMuted((m) => !m)}
+        onRepeat={() => setRepeat((r) => (r === REPEAT.NONE ? REPEAT.ALL : r === REPEAT.ALL ? REPEAT.ONE : REPEAT.NONE))}
+        onShuffle={() => setShuffle((s) => !s)}
       />
 
       {dragOver && (
         <div className="drop-overlay">
-          <div className="drop-overlay__inner">
-            ▼ DROP AUDIO FILES HERE ▼
-          </div>
+          <div className="drop-overlay__inner">▼ DROP AUDIO FILES HERE ▼</div>
         </div>
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onChange={setSettings}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   )

@@ -8,9 +8,21 @@
 
 - **Spectrum visualizer** — full Web Audio API analyser with peak indicators, logarithmic bin mapping and smooth decay on pause (ported from the NE-DOS terminal player)
 - **Playlist management** — add individual files or entire folders recursively, reorder by drag & drop, remove tracks
+- **Metadata tags** — reads Title/Artist/Album/Year from audio file tags
+- **Album art** — displays embedded cover art from tracks when available
+- **Settings panel** — visualizer intensity, auto-play behavior, cover display toggle
+- **Themes** — Matrix Green, Amber CRT, Ice Terminal
 - **Drag & drop** — drop audio files from Explorer directly onto the window
 - **Keyboard shortcuts** — full transport control without touching the mouse
 - **Retro CRT aesthetic** — Matrix-green phosphor palette, scanline overlay, monospace font
+
+## Documentation
+
+- [docs/QUICKSTART.md](docs/QUICKSTART.md) — setup and first run
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — process boundaries and data flow
+- [DESIGN.md](DESIGN.md) — UI/UX design specification
+- [AGENTS.md](AGENTS.md) — instructions for coding agents
+- [CLAUDE.md](CLAUDE.md) — Claude-specific working notes
 
 ## Keyboard Shortcuts
 

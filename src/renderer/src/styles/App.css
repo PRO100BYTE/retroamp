@@ -21,6 +21,54 @@
   --font:        'Courier New', 'Lucida Console', 'Consolas', monospace;
 }
 
+.app.theme-matrix {
+  --green:       #00ff41;
+  --green-dim:   #00aa28;
+  --green-dark:  #001a05;
+  --green-border:#004422;
+  --cyan:        #00e5ff;
+  --yellow:      #ffd700;
+  --red:         #ff4444;
+  --bg:          #020702;
+  --bg2:         #050f05;
+  --bg3:         #071207;
+  --text:        #00cc33;
+  --text-dim:    #006618;
+  --border:      #003318;
+}
+
+.app.theme-amber {
+  --green:       #ffb300;
+  --green-dim:   #c28000;
+  --green-dark:  #221400;
+  --green-border:#6b3f00;
+  --cyan:        #ffd27a;
+  --yellow:      #ffe066;
+  --red:         #ff5a36;
+  --bg:          #120b00;
+  --bg2:         #1a1100;
+  --bg3:         #241600;
+  --text:        #ffcf63;
+  --text-dim:    #7f5b1f;
+  --border:      #5a3700;
+}
+
+.app.theme-ice {
+  --green:       #5fe9ff;
+  --green-dim:   #2ca6ba;
+  --green-dark:  #04151d;
+  --green-border:#1e5060;
+  --cyan:        #9eefff;
+  --yellow:      #cde8ff;
+  --red:         #ff6b8a;
+  --bg:          #031017;
+  --bg2:         #061a24;
+  --bg3:         #082431;
+  --text:        #86dff0;
+  --text-dim:    #3f7f8f;
+  --border:      #154352;
+}
+
 /* ── Reset ──────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -324,6 +372,40 @@ body {
   background: var(--bg);
 }
 
+.track-meta {
+  display: flex;
+  align-items: stretch;
+  border-top: 1px solid var(--border);
+  background: var(--bg2);
+}
+
+.track-meta__cover-wrap {
+  width: 78px;
+  min-width: 78px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+.track-meta__cover {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border: 1px solid var(--green-border);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--green) 30%, transparent);
+}
+
+.track-meta__cover--fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  color: var(--text-dim);
+  background: var(--bg3);
+}
+
 /* ── Spectrum ───────────────────────────────────────────────────── */
 .spectrum-wrap {
   flex: 1;
@@ -341,10 +423,9 @@ body {
 
 /* ── Track Info ─────────────────────────────────────────────────── */
 .track-info {
-  height: 44px;
+  min-height: 44px;
+  flex: 1;
   padding: 6px 14px;
-  border-top: 1px solid var(--border);
-  background: var(--bg2);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -366,6 +447,14 @@ body {
   white-space: nowrap;
   text-shadow: 0 0 8px rgba(0, 255, 65, 0.6);
   letter-spacing: 0.5px;
+}
+
+.track-info__sub {
+  font-size: 10px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Controls ───────────────────────────────────────────────────── */
@@ -575,4 +664,82 @@ body {
 @keyframes pulse {
   from { opacity: 0.7; }
   to   { opacity: 1.0; }
+}
+
+.settings {
+  position: absolute;
+  inset: 0;
+  z-index: 220;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.settings__panel {
+  width: 420px;
+  background: var(--bg2);
+  border: 1px solid var(--green-border);
+  box-shadow: 0 0 20px color-mix(in srgb, var(--green) 20%, transparent);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--green);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+.settings__head button,
+.settings__footer button {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  font-family: var(--font);
+  padding: 3px 8px;
+  cursor: pointer;
+}
+
+.settings__head button:hover,
+.settings__footer button:hover {
+  border-color: var(--green-border);
+  color: var(--green);
+}
+
+.settings__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  color: var(--text);
+}
+
+.settings__row select,
+.settings__row input[type='range'] {
+  flex: 1;
+  background: var(--bg3);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.settings__row--check {
+  justify-content: flex-start;
+}
+
+.settings__row--check input {
+  accent-color: var(--green);
+}
+
+.settings__footer {
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
 }

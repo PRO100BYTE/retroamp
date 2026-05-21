@@ -7,7 +7,7 @@ const C_TOP  = '#00ff41'
 const C_PEAK = '#99ffbb'
 const C_GRID = 'rgba(0,255,65,0.06)'
 
-export default function Spectrum({ analyserRef, playing }) {
+export default function Spectrum({ analyserRef, playing, intensity = 1 }) {
   const wrapRef   = useRef(null)
   const canvasRef = useRef(null)
   const rafRef    = useRef(null)
@@ -94,7 +94,7 @@ export default function Spectrum({ analyserRef, playing }) {
           for (let b = binLo; b <= binHi && b < bins; b++) raw = Math.max(raw, dataArr[b])
         }
 
-        const target = raw / 255
+        const target = Math.max(0, Math.min(1, (raw / 255) * intensity))
         if (!decayRef.current) {
           // Smooth rise, instant snappy fall
           const cur = barsRef.current[i]

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 
-export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear }) {
+export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear, onOpenSettings }) {
   const [maximized, setMaximized] = useState(false)
 
   useEffect(() => {
@@ -17,11 +17,12 @@ export default function TitleBar({ track, onOpenFiles, onOpenFolder, onClear }) 
       <div className="titlebar__menu">
         <button onClick={onOpenFiles}>   [FILE]</button>
         <button onClick={onOpenFolder}>[FOLDER]</button>
+        <button onClick={onOpenSettings}>[SETTINGS]</button>
         <button onClick={onClear}>[CLEAR]</button>
       </div>
 
       <span className="titlebar__track">
-        {trackName ? `♪ ${trackName}` : 'RetroAmp — retro DOS music player'}
+        {trackName ? `♪ ${trackName}${track?.artist ? ` — ${track.artist}` : ''}` : 'RetroAmp — retro DOS music player'}
       </span>
 
       <div className="titlebar__wctrl">

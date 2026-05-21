@@ -94,7 +94,7 @@ export default function Playlist({
                   {String(idx + 1).padStart(2, '0')}.
                 </span>
                 <span className="playlist__item-name">
-                  {track.title}
+                  {track.artist ? `${track.title} — ${track.artist}` : track.title}
                 </span>
                 <span className="playlist__item-dur">
                   {track.duration > 0 ? fmtTime(track.duration) : ''}

@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, nativeImage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { readdir } from 'fs/promises'
+import { parseFile } from 'music-metadata'
 
 const AUDIO_EXTS = new Set(['.mp3', '.flac', '.ogg', '.wav', '.aac', '.m4a', '.opus', '.wma', '.mp4'])
 
@@ -79,6 +80,35 @@ ipcMain.handle('dialog:openFolder', async () => {
   })
   if (canceled || filePaths.length === 0) return []
   return collectAudioFiles(filePaths[0])
+})
+
+ipcMain.handle('media:readTags', async (_e, filePaths = []) => {
+  const list = Array.isArray(filePaths) ? filePaths : []
+  const out = await Promise.all(list.map(async (filePath) => {
+    try {
+      const meta = await parseFile(filePath, { duration: true, skipCovers: false })
+      const common = meta.common || {}
+      const format = meta.format || {}
+      const pic = Array.isArray(common.picture) ? common.picture[0] : null
+      let cover = null
+      if (pic?.data) {
+        const mime = pic.format || 'image/jpeg'
+        cover = `data:${mime};base64,${Buffer.from(pic.data).toString('base64')}`
+      }
+      return {
+        path: filePath,
+        title: common.title || null,
+        artist: common.artist || null,
+        album: common.album || null,
+        year: common.year || null,
+        duration: Number.isFinite(format.duration) ? format.duration : null,
+        cover,
+      }
+    } catch {
+      return { path: filePath }
+    }
+  }))
+  return out
 })
 
 async function collectAudioFiles(dir) {

@@ -12,7 +12,8 @@
     "dist:win": "npm run build && electron-builder --win"
   },
   "dependencies": {
-    "electron": "^29.4.0"
+    "electron": "^29.4.0",
+    "music-metadata": "^10.6.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",

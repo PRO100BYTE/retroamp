@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // File dialogs
   openFiles:   () => ipcRenderer.invoke('dialog:openFiles'),
   openFolder:  () => ipcRenderer.invoke('dialog:openFolder'),
+  readTags:    (paths) => ipcRenderer.invoke('media:readTags', paths),
 
   // Window controls
   minimize: () => ipcRenderer.send('window:minimize'),
